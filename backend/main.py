@@ -23,7 +23,14 @@ app.add_middleware(
 
 # Configure Gemini
 API_KEY = os.environ.get("GEMINI_API_KEY")
-gemini_client = genai.Client(api_key=API_KEY)
+gemini_client = None
+if API_KEY:
+    try:
+        gemini_client = genai.Client(api_key=API_KEY)
+    except Exception as e:
+        print(f"Failed to initialize Gemini Client: {e}")
+else:
+    print("WARNING: GEMINI_API_KEY environment variable is not set. AI features will fallback to Regex.")
 
 # Configure MongoDB
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
@@ -56,6 +63,10 @@ def load_from_db():
 
 def analyze_chunk_with_gemini(text_chunk):
     """Analyzes a single chunk of text with Gemini."""
+    if not gemini_client:
+        print("Gemini client not initialized (missing API key).")
+        return []
+        
     prompt = f"""
     Extract all MCQs from this text chunk. 
     Identify the correct answer based on bold/underline formatting or context.
