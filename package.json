@@ -1,0 +1,9 @@
+{
+  "name": "quiz-gen-root",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "backend": "cd backend && python main.py",
+    "start": "npm run dev"
+  }
+}

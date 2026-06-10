@@ -1,0 +1,945 @@
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { 
+  Upload, Play, CheckCircle, RefreshCw, Settings, ChevronLeft, 
+  ChevronRight, Trophy, BrainCircuit, Send, User, LogOut, Lock, 
+  ShieldAlert, Smartphone, ShieldCheck, Mail 
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import './App.css';
+
+const API_URL = 'http://localhost:8000';
+
+// USER'S GOOGLE CLIENT ID
+const GOOGLE_CLIENT_ID = "653610501656-emigf3rjghphaki1kphg25gt74u8rvfa.apps.googleusercontent.com";
+
+// Helper to decode google JWT client side
+const decodeJwt = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("JWT Decode error:", error);
+    return null;
+  }
+};
+
+function App() {
+  const [user, setUser] = useState(null); // { name, role, email, picture }
+  const [authPortalMode, setAuthPortalMode] = useState('student'); // 'student' or 'admin'
+  const [activeFormTab, setActiveFormTab] = useState('signin'); // 'signin' or 'signup'
+  const [customClientId, setCustomClientId] = useState(GOOGLE_CLIENT_ID);
+  const [showConfig, setShowConfig] = useState(false);
+  const [showBypassOverlay, setShowBypassOverlay] = useState(false);
+  
+  // Auth Form Inputs
+  const [formName, setFormName] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formPassword, setFormPassword] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formCountryCode, setFormCountryCode] = useState('+91');
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+
+  // Quiz States
+  const [view, setView] = useState('home'); // 'home', 'quiz', 'results', 'admin'
+  const [loading, setLoading] = useState(false);
+  const [quizData, setQuizData] = useState({ questions: [] });
+  const [adminPreview, setAdminPreview] = useState(null);
+  
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [userAnswers, setUserAnswers] = useState({}); 
+  const [score, setScore] = useState({ correct: 0, wrong: 0, total: 0 });
+  const fileInputRef = useRef(null);
+
+  // Fetch session on load and retrieve current quiz
+  useEffect(() => {
+    const savedUser = localStorage.getItem('current_user');
+    if (savedUser) {
+      try {
+        const u = JSON.parse(savedUser);
+        setUser(u);
+        if (u.role === 'admin') {
+          setView('admin');
+        } else {
+          setView('home');
+        }
+      } catch (e) {
+        console.error("Failed to parse user session", e);
+      }
+    }
+    fetchQuiz();
+  }, []);
+
+  // Initialize and render the real Google Sign-In button whenever UI switches to Login form
+  useEffect(() => {
+    if (user) return;
+
+    const initGoogleOAuthButton = () => {
+      if (window.google && document.getElementById("googleSignInButton")) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: customClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false
+          });
+          window.google.accounts.id.renderButton(
+            document.getElementById("googleSignInButton"),
+            { 
+              theme: "outline", 
+              size: "large", 
+              width: "320",
+              text: "continue_with"
+            }
+          );
+        } catch (e) {
+          console.error("Google Auth initialization failed: ", e);
+        }
+      }
+    };
+
+    const timer = setTimeout(initGoogleOAuthButton, 150);
+    return () => clearTimeout(timer);
+  }, [user, authPortalMode, activeFormTab, customClientId]);
+
+  // Google credential response handler
+  const handleGoogleCredentialResponse = (response) => {
+    setAuthError('');
+    setAuthSuccess('');
+    const payload = decodeJwt(response.credential);
+    if (payload) {
+      const loggedUser = {
+        name: payload.name || payload.given_name || payload.email.split('@')[0],
+        role: authPortalMode, 
+        email: payload.email,
+        picture: payload.picture
+      };
+      
+      setUser(loggedUser);
+      localStorage.setItem('current_user', JSON.stringify(loggedUser));
+
+      if (authPortalMode === 'admin') {
+        setView('admin');
+      } else {
+        setView('home');
+      }
+    } else {
+      setAuthError('Unable to extract Google Account details.');
+    }
+  };
+
+  const completeBypassSignIn = (email, name) => {
+    setAuthError('');
+    setAuthSuccess('');
+    const loggedUser = {
+      name: name,
+      role: authPortalMode,
+      email: email,
+      picture: ''
+    };
+    setUser(loggedUser);
+    localStorage.setItem('current_user', JSON.stringify(loggedUser));
+    setShowBypassOverlay(false);
+    
+    if (authPortalMode === 'admin') {
+      setView('admin');
+    } else {
+      setView('home');
+    }
+  };
+
+  const fetchQuiz = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/get-quiz`);
+      if (res.data && res.data.questions) {
+        setQuizData(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch quiz data");
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    setAdminPreview(null);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await axios.post(`${API_URL}/upload`, formData);
+      setAdminPreview(res.data);
+    } catch (err) {
+      alert("Analysis failed. Try a smaller file or check API quota.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveQuizToSystem = async () => {
+    if (!adminPreview) return;
+    try {
+      await axios.post(`${API_URL}/save-quiz`, adminPreview);
+      setQuizData(adminPreview);
+      setAdminPreview(null);
+      alert("Quiz Published!");
+      setView('home'); 
+    } catch (err) {
+      alert("Failed to save quiz");
+    }
+  };
+
+  const startQuiz = () => {
+    if (!quizData.questions.length) {
+      return alert("No quiz available! Please ask the Admin to upload a quiz first.");
+    }
+    if (!user || user.role !== 'student') {
+      return alert("Only logged-in Students can play the quiz.");
+    }
+    setCurrentQuestionIdx(0);
+    setUserAnswers({});
+    setScore({ correct: 0, wrong: 0, total: 0 });
+    setView('quiz');
+  };
+
+  const selectOption = (option) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [currentQuestionIdx]: option
+    }));
+
+    // Auto-move to next after a tiny delay for visual confirmation
+    setTimeout(() => {
+      if (currentQuestionIdx < quizData.questions.length - 1) {
+        setCurrentQuestionIdx(prev => prev + 1);
+      }
+    }, 400); 
+  };
+
+  const nextQuestion = () => {
+    if (currentQuestionIdx < quizData.questions.length - 1) {
+      setCurrentQuestionIdx(currentQuestionIdx + 1);
+    }
+  };
+
+  const prevQuestion = () => {
+    if (currentQuestionIdx > 0) {
+      setCurrentQuestionIdx(currentQuestionIdx - 1);
+    }
+  };
+
+  const submitQuiz = () => {
+    let correct = 0;
+    quizData.questions.forEach((q, idx) => {
+      if (userAnswers[idx] === q.answer) correct++;
+    });
+    setScore({ 
+      correct, 
+      wrong: quizData.questions.length - correct, 
+      total: quizData.questions.length 
+    });
+    setView('results');
+  };
+
+  // Local Accounts Auth Submit
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthSuccess('');
+
+    if (activeFormTab === 'signup') {
+      // Sign Up Handler
+      if (!formName || !formEmail || !formPassword) {
+        setAuthError('All fields are required.');
+        return;
+      }
+      if (formPassword.length < 4) {
+        setAuthError('Password must be at least 4 characters long.');
+        return;
+      }
+
+      try {
+        const payload = {
+          name: formName,
+          email: formEmail,
+          password: formPassword,
+          phone: `${formCountryCode} ${formPhone}`,
+          role: authPortalMode
+        };
+        const res = await axios.post(`${API_URL}/signup`, payload);
+        const newUser = res.data;
+        
+        // Auto login directly
+        setUser(newUser);
+        localStorage.setItem('current_user', JSON.stringify(newUser));
+
+        // Redirect
+        if (authPortalMode === 'admin') {
+          setView('admin');
+        } else {
+          setView('home');
+        }
+
+        // Reset
+        setFormName('');
+        setFormEmail('');
+        setFormPassword('');
+        setFormPhone('');
+      } catch (err) {
+        if (err.response && err.response.data && err.response.data.detail) {
+          setAuthError(err.response.data.detail);
+        } else {
+          setAuthError('Sign up failed. Please try again.');
+        }
+      }
+    } else {
+      // Sign In Handler
+      if (!formEmail || !formPassword) {
+        setAuthError('Please enter your email and password.');
+        return;
+      }
+
+      try {
+        const payload = {
+          email: formEmail,
+          password: formPassword,
+          role: authPortalMode
+        };
+        const res = await axios.post(`${API_URL}/signin`, payload);
+        const matchingUser = res.data;
+
+        setUser(matchingUser);
+        localStorage.setItem('current_user', JSON.stringify(matchingUser));
+        if (authPortalMode === 'admin') {
+          setView('admin');
+        } else {
+          setView('home');
+        }
+      } catch (err) {
+        if (err.response && err.response.data && err.response.data.detail) {
+          setAuthError(err.response.data.detail);
+        } else {
+          setAuthError('Invalid email or password credentials. Please verify your entries.');
+        }
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('current_user');
+    setView('home');
+    setFormName('');
+    setFormEmail('');
+    setFormPassword('');
+    setAuthError('');
+    setAuthSuccess('');
+  };
+
+  return (
+    <div className="app-container">
+      {/* HEADER SECTION */}
+      <header className="header">
+        <div className="logo-container">
+          <div className="logo-icon">
+            <BrainCircuit size={28} color="#fff" />
+          </div>
+          <span className="logo-text">QuizGen AI</span>
+          <span className="logo-badge">Portal</span>
+        </div>
+
+        <div className="user-profile-header">
+          {/* Settings gear to config Client ID if needed */}
+          <button 
+            className="duo-btn duo-btn-white" 
+            style={{ width: 'auto', padding: '0.4rem 0.6rem', borderRadius: '12px', boxShadow: 'none' }}
+            onClick={() => setShowConfig(!showConfig)}
+            title="Google OAuth Settings"
+          >
+            <Settings size={16} />
+          </button>
+
+          {user && (
+            <div className="user-badge-wrapper" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {user.picture ? (
+                <img 
+                  src={user.picture} 
+                  alt={user.name} 
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid var(--playful-blue)' }}
+                />
+              ) : null}
+              <div className={`user-badge ${user.role}`}>
+                {user.role === 'admin' ? <ShieldCheck size={16} /> : <User size={16} />}
+                <span>{user.name} ({user.role.toUpperCase()})</span>
+              </div>
+              <button 
+                className="duo-btn duo-btn-white" 
+                style={{ padding: '0.4rem 1rem', borderRadius: '12px', width: 'auto', boxShadow: 'none' }} 
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* CLIENT ID CONFIGURATION DRAWER */}
+      <AnimatePresence>
+        {showConfig && (
+          <motion.div 
+            className="login-card"
+            style={{ padding: '1.5rem', marginBottom: '2rem' }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+          >
+            <h4 style={{ margin: '0 0 10px 0', fontWeight: '800' }}>⚙️ Google Client ID Settings</h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '15px' }}>
+              Set your Google OAuth client ID here if you want to update it.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input 
+                type="text" 
+                className="duo-input" 
+                style={{ fontSize: '0.8rem' }}
+                value={customClientId} 
+                onChange={(e) => setCustomClientId(e.target.value)}
+                placeholder="Enter Client ID"
+              />
+              <button 
+                className="duo-btn duo-btn-blue" 
+                style={{ width: 'auto', padding: '0 0.8rem', fontSize: '0.8rem' }}
+                onClick={() => {
+                  setShowConfig(false);
+                  alert("Google Client ID successfully updated!");
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SIMULATED GOOGLE OAUTH BYPASS POPUP OVERLAY */}
+      <AnimatePresence>
+        {showBypassOverlay && (
+          <div className="google-popup-overlay">
+            <motion.div 
+              className="google-popup"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <div className="google-popup-header">
+                <svg className="google-icon-svg" viewBox="0 0 24 24" style={{ width: '40px', height: '40px', marginBottom: '10px' }}>
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem' }}>Google Sign In (Bypass Mode)</h3>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#5f6368' }}>Select a simulated test Google account</p>
+              </div>
+              <div className="google-popup-body">
+                <div className="google-account-list">
+                  {authPortalMode === 'admin' ? (
+                    <>
+                      <div className="google-account-item" onClick={() => completeBypassSignIn('admin.test@gmail.com', 'Dinesh Admin (OAuth)')}>
+                        <div className="google-avatar">A</div>
+                        <div className="google-account-info">
+                          <span className="google-account-name">Dinesh Admin (OAuth)</span>
+                          <span className="google-account-email">admin.test@gmail.com</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="google-account-item" onClick={() => completeBypassSignIn('dineshbabu20dinesh07@gmail.com', 'Dineshbabu (OAuth)')}>
+                        <div className="google-avatar">D</div>
+                        <div className="google-account-info">
+                          <span className="google-account-name">Dineshbabu</span>
+                          <span className="google-account-email">dineshbabu20dinesh07@gmail.com</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button 
+                  className="duo-btn duo-btn-white" 
+                  style={{ marginTop: '20px', padding: '0.6rem 1rem', fontSize: '0.9rem', boxShadow: 'none' }} 
+                  onClick={() => setShowBypassOverlay(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MAIN VIEWING CONTAINER */}
+      <AnimatePresence mode="wait">
+        
+        {/* LOGIN SCREEN IF NOT AUTHENTICATED */}
+        {!user && (
+          <motion.div 
+            key="login" 
+            className="login-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            {/* SWITCH PORTAL HEADER */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              {authPortalMode === 'student' ? (
+                <button 
+                  type="button"
+                  className="duo-btn duo-btn-white"
+                  style={{ width: 'auto', padding: '0.4rem 1rem', borderRadius: '12px', fontSize: '0.85rem', boxShadow: 'none' }}
+                  onClick={() => { setAuthPortalMode('admin'); setAuthError(''); setAuthSuccess(''); }}
+                >
+                  <Lock size={14} style={{ marginRight: '5px' }} /> Admin Portal Login
+                </button>
+              ) : (
+                <button 
+                  type="button"
+                  className="duo-btn duo-btn-white"
+                  style={{ width: 'auto', padding: '0.4rem 1rem', borderRadius: '12px', fontSize: '0.85rem', boxShadow: 'none' }}
+                  onClick={() => { setAuthPortalMode('student'); setAuthError(''); setAuthSuccess(''); }}
+                >
+                  <User size={14} style={{ marginRight: '5px' }} /> Student Portal Login
+                </button>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🦉</div>
+              <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+                {authPortalMode === 'admin' ? 'Admin Portal Workspace' : 'Student Study Center'}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontWeight: '700', marginTop: '5px', fontSize: '0.9rem' }}>
+                {authPortalMode === 'admin' ? 'Create, upload & distribute practice quizzes' : 'Access published AI study cards & tests'}
+              </p>
+            </div>
+
+            {/* SIGN IN / SIGN UP TABS */}
+            <div className="tab-switcher" style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' }}>
+              <button 
+                type="button"
+                className={`tab-btn`}
+                onClick={() => { setActiveFormTab('signin'); setAuthError(''); setAuthSuccess(''); }}
+                style={{
+                  flex: 1, padding: '0.8rem', background: 'none', border: 'none',
+                  fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer',
+                  borderBottom: activeFormTab === 'signin' ? '4px solid var(--playful-blue)' : 'none',
+                  color: activeFormTab === 'signin' ? 'var(--playful-blue-border)' : 'var(--text-muted)'
+                }}
+              >
+                Sign In
+              </button>
+              <button 
+                type="button"
+                className={`tab-btn`}
+                onClick={() => { setActiveFormTab('signup'); setAuthError(''); setAuthSuccess(''); }}
+                style={{
+                  flex: 1, padding: '0.8rem', background: 'none', border: 'none',
+                  fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer',
+                  borderBottom: activeFormTab === 'signup' ? '4px solid var(--playful-blue)' : 'none',
+                  color: activeFormTab === 'signup' ? 'var(--playful-blue-border)' : 'var(--text-muted)'
+                }}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {authError && (
+              <div className="duo-alert duo-alert-error">
+                <ShieldAlert size={20} />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            {authSuccess && (
+              <div className="duo-alert duo-alert-success">
+                <CheckCircle size={20} />
+                <span>{authSuccess}</span>
+              </div>
+            )}
+
+            {/* GOOGLE SIGN-IN CONTAINER */}
+            <div className="google-oauth-btn-wrapper">
+              <div id="googleSignInButton"></div>
+              
+              {/* BYPASS BUTTON FOR LOCAL DEV */}
+              <button 
+                type="button" 
+                className="google-bypass-link"
+                onClick={() => setShowBypassOverlay(true)}
+              >
+                Mock Google OAuth bypass (locally test login)
+              </button>
+            </div>
+
+            <div className="duo-divider">or use email login</div>
+
+            {/* DYNAMIC SIGN IN / SIGN UP FORM */}
+            <form onSubmit={handleAuthSubmit}>
+              {activeFormTab === 'signup' && (
+                <>
+                  <div className="duo-input-group">
+                    <label className="duo-input-label">Full Name</label>
+                    <input 
+                      type="text" 
+                      className="duo-input" 
+                      placeholder="Enter your name" 
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="duo-input-group">
+                    <label className="duo-input-label">Phone Number</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select 
+                        className="duo-input" 
+                        style={{ width: '100px', padding: '0.8rem 0.5rem' }}
+                        value={formCountryCode}
+                        onChange={(e) => setFormCountryCode(e.target.value)}
+                      >
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+81">🇯🇵 +81</option>
+                        <option value="+49">🇩🇪 +49</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+86">🇨🇳 +86</option>
+                        <option value="+7">🇷🇺 +7</option>
+                        <option value="+55">🇧🇷 +55</option>
+                        <option value="+27">🇿🇦 +27</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+60">🇲🇾 +60</option>
+                        <option value="+64">🇳🇿 +64</option>
+                        <option value="+39">🇮🇹 +39</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+82">🇰🇷 +82</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+62">🇮🇩 +62</option>
+                      </select>
+                      <input 
+                        type="tel" 
+                        className="duo-input" 
+                        placeholder="Mobile Number" 
+                        value={formPhone}
+                        onChange={(e) => setFormPhone(e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="duo-input-group">
+                <label className="duo-input-label">Email ID</label>
+                <input 
+                  type="email" 
+                  className="duo-input" 
+                  placeholder={authPortalMode === 'admin' ? "admin@gmail.com" : "student@gmail.com"}
+                  value={formEmail}
+                  onChange={(e) => setFormEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="duo-input-group">
+                <label className="duo-input-label">Password</label>
+                <input 
+                  type="password" 
+                  className="duo-input" 
+                  placeholder="••••••••" 
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className={authPortalMode === 'admin' ? 'duo-btn duo-btn-blue' : 'duo-btn duo-btn-green'}>
+                {activeFormTab === 'signin' ? 'Sign In' : 'Create Account'}
+              </button>
+
+              {activeFormTab === 'signup' && (
+                <button 
+                  type="button" 
+                  className="duo-btn duo-btn-white" 
+                  style={{ marginTop: '10px', boxShadow: 'none' }}
+                  onClick={() => { setActiveFormTab('signin'); setAuthError(''); setAuthSuccess(''); }}
+                >
+                  Back to Sign In
+                </button>
+              )}
+            </form>
+            
+            {activeFormTab === 'signin' && authPortalMode === 'admin' && (
+              <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                Default Seeded Credentials: <strong>admin@gmail.com</strong> / <strong>admin123</strong>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* HOME / WELCOME VIEW (FOR LOGGED IN STUDENTS) */}
+        {user && view === 'home' && (
+          <motion.div 
+            key="home" 
+            className="main-card center-text"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {user.role === 'admin' ? (
+              <div>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚙️</div>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>Admin Portal Dashboard</h2>
+                <p style={{ color: 'var(--text-muted)', fontWeight: '700', marginBottom: '2rem' }}>
+                  Welcome Admin, {user.name} ({user.email}). You can configure and publish test sessions.
+                </p>
+                <button className="duo-btn duo-btn-blue" onClick={() => setView('admin')} style={{ maxWidth: '300px', margin: '0 auto 10px' }}>
+                  <Settings size={20} /> Open AI Scanning Portal
+                </button>
+                <button className="duo-btn duo-btn-white" onClick={handleLogout} style={{ maxWidth: '300px', margin: '0 auto', boxShadow: 'none' }}>
+                  <LogOut size={20} /> Log Out / Back
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎓</div>
+                <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: 0 }}>
+                  Welcome back, {user.name}!
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontWeight: '800', margin: '10px 0 2rem' }}>
+                  {quizData.questions.length > 0 
+                    ? `A practice quiz with ${quizData.questions.length} questions is ready for you.` 
+                    : "No test has been uploaded yet. Please ask the Admin to upload one."}
+                </p>
+                
+                <button 
+                  className="duo-btn duo-btn-green" 
+                  onClick={startQuiz}
+                  disabled={quizData.questions.length === 0}
+                  style={{ maxWidth: '300px', margin: '0 auto 10px' }}
+                >
+                  <Play size={20} fill="#fff" /> Start Practice Test
+                </button>
+                <button className="duo-btn duo-btn-white" onClick={handleLogout} style={{ maxWidth: '300px', margin: '0 auto', boxShadow: 'none' }}>
+                  <LogOut size={20} /> Log Out / Back
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* STUDENT QUIZ GAME PLAY VIEW */}
+        {user && user.role === 'student' && view === 'quiz' && (
+          <motion.div 
+            key="quiz" 
+            className="quiz-play-view"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+          >
+            <div className="quiz-top-info">
+              <button className="exit-btn" onClick={() => setView('home')}>
+                <ChevronLeft size={20} /> Quit Practice
+              </button>
+              <div style={{ fontWeight: '800', color: 'var(--text-muted)' }}>
+                Question {currentQuestionIdx + 1} of {quizData.questions.length}
+              </div>
+            </div>
+
+            {/* Playful Progress Bar */}
+            <div className="duo-progress-bar">
+              <div 
+                className="duo-progress-fill" 
+                style={{ width: `${((currentQuestionIdx + 1) / quizData.questions.length) * 100}%` }}
+              ></div>
+            </div>
+
+            <div className="question-text">
+              {quizData.questions[currentQuestionIdx].question}
+            </div>
+
+            <div className="options-grid">
+              {quizData.questions[currentQuestionIdx].options.map((opt, i) => {
+                const charCode = String.fromCharCode(65 + i);
+                return (
+                  <button 
+                    key={i} 
+                    className={`option-card ${userAnswers[currentQuestionIdx] === opt ? 'selected' : ''}`}
+                    onClick={() => selectOption(opt)}
+                  >
+                    <span className="option-badge">{charCode}</span>
+                    <span>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="quiz-footer">
+              <button 
+                className="duo-btn duo-btn-white" 
+                disabled={currentQuestionIdx === 0} 
+                onClick={prevQuestion}
+                style={{ flex: 1 }}
+              >
+                <ChevronLeft size={20} /> Back
+              </button>
+
+              {currentQuestionIdx === quizData.questions.length - 1 ? (
+                <button 
+                  className="duo-btn duo-btn-green" 
+                  onClick={submitQuiz}
+                  style={{ flex: 2 }}
+                >
+                  <Send size={20} /> Finish & Submit
+                </button>
+              ) : (
+                <button 
+                  className="duo-btn duo-btn-blue" 
+                  onClick={nextQuestion}
+                  style={{ flex: 2 }}
+                >
+                  Skip Question <ChevronRight size={20} />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* RESULTS SCREEN */}
+        {user && user.role === 'student' && view === 'results' && (
+          <motion.div 
+            key="results" 
+            className="results-view center-text"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="results-header">
+              <div className="trophy-container">
+                <span className="trophy-logo">🏆</span>
+              </div>
+              <h2>Lesson Complete!</h2>
+              <p style={{ color: 'var(--text-muted)', fontWeight: '800' }}>
+                You have finished your practice quiz. Here is your summary score!
+              </p>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-box correct">
+                <div className="stat-value">{score.correct}</div>
+                <div className="stat-label">Correct</div>
+              </div>
+              <div className="stat-box wrong">
+                <div className="stat-value">{score.wrong}</div>
+                <div className="stat-label">Incorrect</div>
+              </div>
+            </div>
+
+            <button className="duo-btn duo-btn-green" onClick={() => setView('home')} style={{ maxWidth: '300px', margin: '0 auto' }}>
+              <RefreshCw size={20} /> Practice Again
+            </button>
+          </motion.div>
+        )}
+
+        {/* ADMIN FILE SCANNING PORTAL */}
+        {user && user.role === 'admin' && view === 'admin' && (
+          <motion.div 
+            key="admin" 
+            className="admin-panel"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>AI Scanning Center</h2>
+              <button className="duo-btn duo-btn-white" onClick={() => setView('home')} style={{ width: 'auto', padding: '0.6rem 1.2rem' }}>
+                <ChevronLeft size={18} /> Back Dashboard
+              </button>
+            </div>
+
+            <div className="admin-badge-notice">
+              🔒 Admin Access Level Authorized. Scanning large PDFs or Docx files will load generated MCQs directly.
+            </div>
+
+            <div className="file-dropzone" onClick={() => fileInputRef.current.click()}>
+              <Upload size={48} color="var(--playful-blue)" />
+              <p>Click to Upload Study Document</p>
+              <span>Supports PDF, DOCX, DOC files</span>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
+            </div>
+
+            {loading && (
+              <div style={{ textAlign: 'center', margin: '2rem 0' }}>
+                <div className="spinner"></div>
+                <p style={{ fontWeight: '700', color: 'var(--text-muted)' }}>
+                  Analyzing study document... please wait.
+                </p>
+              </div>
+            )}
+
+            {adminPreview && (
+              <div className="admin-preview-box">
+                <div className="preview-title-bar">
+                  <div>
+                    <h3>Scan Detected {adminPreview.total_questions} Questions</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                      File: {adminPreview.filename}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      className="duo-btn duo-btn-white" 
+                      onClick={() => setAdminPreview(null)} 
+                      style={{ width: 'auto', padding: '0.6rem 1.5rem', boxShadow: 'none' }}
+                    >
+                      Discard & Back
+                    </button>
+                    <button className="duo-btn duo-btn-green" onClick={saveQuizToSystem} style={{ width: 'auto', padding: '0.6rem 1.5rem' }}>
+                      <CheckCircle size={18} /> Save & Publish Quiz
+                    </button>
+                  </div>
+                </div>
+
+                <div className="admin-preview-list">
+                  {adminPreview.questions.map((q, idx) => (
+                    <div key={idx} className="admin-preview-item">
+                      <p>{idx + 1}. {q.question}</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px', margin: '8px 0', fontSize: '0.9rem' }}>
+                        {q.options.map((opt, i) => (
+                          <div key={i} style={{ color: opt === q.answer ? 'var(--playful-green-border)' : 'var(--text)', fontWeight: opt === q.answer ? '700' : '400' }}>
+                            • {opt}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="correct-ans">Correct Answer: {q.answer}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+      </AnimatePresence>
+    </div>
+  );
+}
+
+export default App;
