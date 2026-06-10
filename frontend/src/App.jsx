@@ -615,13 +615,15 @@ function App() {
               </button>
               
               {/* BYPASS BUTTON FOR LOCAL DEV */}
-              <button 
-                type="button" 
-                className="google-bypass-link"
-                onClick={() => setShowBypassOverlay(true)}
-              >
-                Mock Google OAuth bypass (locally test login)
-              </button>
+              {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+                <button 
+                  type="button" 
+                  className="google-bypass-link"
+                  onClick={() => setShowBypassOverlay(true)}
+                >
+                  Mock Google OAuth bypass (locally test login)
+                </button>
+              )}
             </div>
 
             <div className="duo-divider">or use email login</div>
