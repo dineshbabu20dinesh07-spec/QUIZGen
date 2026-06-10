@@ -1,4 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from parser_utils import extract_text_from_pdf, extract_text_from_docx, extract_text_from_doc
@@ -24,7 +26,7 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 gemini_client = genai.Client(api_key=API_KEY)
 
 # Configure MongoDB
-MONGO_URI = "mongodb://localhost:27017/"
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 client = MongoClient(MONGO_URI)
 db = client["quizgen_db"]
 quizzes_collection = db["quizzes"]
@@ -168,6 +170,17 @@ async def signin(user: UserLogin):
         return db_user
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+# Serve static files and React app
+if os.path.exists("frontend/dist"):
+    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+    
+    @app.get("/{full_path:path}")
+    async def serve_react_app(full_path: str):
+        index_path = "frontend/dist/index.html"
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Not Found")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
