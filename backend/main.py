@@ -39,6 +39,12 @@ db = client["quizgen_db"]
 quizzes_collection = db["quizzes"]
 users_collection = db["users"]
 
+# Create index on email for faster query performance and uniqueness constraint
+try:
+    users_collection.create_index("email", unique=True)
+except Exception as e:
+    print(f"Database index initialization info: {e}")
+
 class UserCreate(BaseModel):
     name: str
     email: str
