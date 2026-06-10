@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 // USER'S GOOGLE CLIENT ID
 const GOOGLE_CLIENT_ID = "653610501656-emigf3rjghphaki1kphg25gt74u8rvfa.apps.googleusercontent.com";
