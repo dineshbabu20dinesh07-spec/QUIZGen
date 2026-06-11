@@ -701,12 +701,11 @@ function App() {
                 {/* Professional Feature Grid */}
                 <div style={{
                   display: 'flex',
-                  flexWrap: 'wrap',
+                  flexWrap: 'nowrap',
                   justifyContent: 'center',
-                  gap: '12px',
-                  marginTop: '2rem',
+                  gap: '6px',
+                  marginTop: '1.5rem',
                   width: '100%',
-                  maxWidth: '480px'
                 }}>
                   {[
                     { icon: '⚡', label: 'AI Generator' },
@@ -720,27 +719,29 @@ function App() {
                       WebkitBackdropFilter: 'blur(12px)',
                       border: '1px solid rgba(255,255,255,0.15)',
                       borderRadius: '50px',
-                      padding: '0.5rem 1rem',
+                      padding: '0.4rem 0.6rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      gap: '5px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      whiteSpace: 'nowrap'
                     }}>
                       <div style={{
-                        fontSize: '1rem',
-                        width: '24px',
-                        height: '24px',
+                        fontSize: '0.85rem',
+                        width: '20px',
+                        height: '20px',
                         borderRadius: '50%',
                         background: 'rgba(167,139,250,0.25)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0
                       }}>{feat.icon}</div>
                       <div style={{
-                        fontSize: '0.8rem',
+                        fontSize: '0.72rem',
                         fontWeight: '700',
                         color: '#fff',
-                        letterSpacing: '0.3px',
+                        letterSpacing: '0.2px',
                         fontFamily: "'Nunito', sans-serif",
                       }}>{feat.label}</div>
                     </div>
