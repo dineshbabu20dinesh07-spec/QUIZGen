@@ -56,24 +56,26 @@ function App() {
   const [userAnswers, setUserAnswers] = useState({}); 
   const [score, setScore] = useState({ correct: 0, wrong: 0, total: 0 });
   const fileInputRef = useRef(null);
+  
+  // Dashboard states
+  const [quizzesList, setQuizzesList] = useState([]);
+  const [dashboardData, setDashboardData] = useState([]);
 
   // Fetch session on load and retrieve current quiz
   useEffect(() => {
     const savedUser = localStorage.getItem('current_user');
+    let u = null;
     if (savedUser) {
       try {
-        const u = JSON.parse(savedUser);
+        u = JSON.parse(savedUser);
         setUser(u);
-        if (u.role === 'admin') {
-          setView('admin');
-        } else {
-          setView('home');
-        }
+        setView('home');
       } catch (e) {
         console.error("Failed to parse user session", e);
       }
     }
-    fetchQuiz();
+    fetchQuizzes();
+    if (u) fetchDashboardData(u);
   }, []);
 
   // Initialize Google Token Client for programmatically launching Google Account picker
@@ -166,14 +168,31 @@ function App() {
     }
   };
 
-  const fetchQuiz = async () => {
+  const fetchQuizzes = async () => {
     try {
-      const res = await axios.get(`${API_URL}/get-quiz`);
-      if (res.data && res.data.questions) {
-        setQuizData(res.data);
+      const res = await axios.get(`${API_URL}/quizzes`);
+      setQuizzesList(res.data);
+      const currentRes = await axios.get(`${API_URL}/get-quiz`);
+      if (currentRes.data && currentRes.data.questions) {
+        setQuizData(currentRes.data);
       }
     } catch (err) {
-      console.error("Failed to fetch quiz data");
+      console.error("Failed to fetch quizzes");
+    }
+  };
+
+  const fetchDashboardData = async (currentUser) => {
+    if (!currentUser) return;
+    try {
+      if (currentUser.role === 'admin') {
+        const res = await axios.get(`${API_URL}/faculty-quizzes?email=${currentUser.email}`);
+        setDashboardData(res.data);
+      } else {
+        const res = await axios.get(`${API_URL}/student-attempts?email=${currentUser.email}`);
+        setDashboardData(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard data");
     }
   };
 
@@ -199,18 +218,22 @@ function App() {
   const saveQuizToSystem = async () => {
     if (!adminPreview) return;
     try {
-      await axios.post(`${API_URL}/save-quiz`, adminPreview);
-      setQuizData(adminPreview);
+      const payload = { ...adminPreview, faculty_email: user.email };
+      await axios.post(`${API_URL}/save-quiz`, payload);
       setAdminPreview(null);
       alert("Quiz Published!");
+      fetchQuizzes();
+      fetchDashboardData(user);
       setView('home'); 
     } catch (err) {
       alert("Failed to save quiz");
     }
   };
 
-  const startQuiz = () => {
-    if (!quizData.questions.length) {
+  const startQuiz = (selectedQuiz = null) => {
+    if (selectedQuiz) {
+      setQuizData(selectedQuiz);
+    } else if (!quizData.questions || !quizData.questions.length) {
       return alert("No quiz available! Please ask the Admin to upload a quiz first.");
     }
     if (!user || user.role !== 'student') {
@@ -248,16 +271,32 @@ function App() {
     }
   };
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
     let correct = 0;
     quizData.questions.forEach((q, idx) => {
       if (userAnswers[idx] === q.answer) correct++;
     });
-    setScore({ 
+    const finalScore = { 
       correct, 
       wrong: quizData.questions.length - correct, 
       total: quizData.questions.length 
-    });
+    };
+    setScore(finalScore);
+
+    try {
+       await axios.post(`${API_URL}/submit-attempt`, {
+          student_email: user.email,
+          quiz_id: quizData._id || 'unknown',
+          quiz_title: quizData.title || quizData.filename || 'Untitled Quiz',
+          score: finalScore.correct,
+          total: finalScore.total,
+          percentage: Math.round((finalScore.correct / finalScore.total) * 100)
+       });
+       fetchDashboardData(user);
+    } catch (err) {
+       console.error("Failed to save attempt");
+    }
+
     setView('results');
   };
 
@@ -357,9 +396,10 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* HEADER SECTION */}
-      <header className="header">
+    <div className={`app-container ${!user ? 'login-mode' : ''}`}>
+      {/* HEADER SECTION - Only show if logged in to allow for split-screen login */}
+      {user && (
+        <header className="header">
         <div className="logo-container">
           <div className="logo-icon">
             <BrainCircuit size={28} color="#fff" />
@@ -369,15 +409,17 @@ function App() {
         </div>
 
         <div className="user-profile-header">
-          {/* Settings gear to config Client ID if needed */}
-          <button 
-            className="duo-btn duo-btn-white" 
-            style={{ width: 'auto', padding: '0.4rem 0.6rem', borderRadius: '12px', boxShadow: 'none' }}
-            onClick={() => setShowConfig(!showConfig)}
-            title="Google OAuth Settings"
-          >
-            <Settings size={16} />
-          </button>
+          {/* Settings gear is hidden from public view as requested */}
+          {user && user.role === 'admin' && (
+            <button 
+              className="duo-btn duo-btn-white" 
+              style={{ width: 'auto', padding: '0.4rem 0.6rem', borderRadius: '12px', boxShadow: 'none' }}
+              onClick={() => setShowConfig(!showConfig)}
+              title="Google OAuth Settings"
+            >
+              <Settings size={16} />
+            </button>
+          )}
 
           {user && (
             <div className="user-badge-wrapper" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -403,6 +445,7 @@ function App() {
           )}
         </div>
       </header>
+      )}
 
       {/* CLIENT ID CONFIGURATION DRAWER */}
       <AnimatePresence>
@@ -506,43 +549,168 @@ function App() {
         {!user && (
           <motion.div 
             key="login" 
-            className="login-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            className="login-split-layout"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            {/* SWITCH PORTAL HEADER */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-              {authPortalMode === 'student' ? (
-                <button 
-                  type="button"
-                  className="duo-btn duo-btn-white"
-                  style={{ width: 'auto', padding: '0.4rem 1rem', borderRadius: '12px', fontSize: '0.85rem', boxShadow: 'none' }}
-                  onClick={() => { setAuthPortalMode('admin'); setAuthError(''); setAuthSuccess(''); }}
-                >
-                  <Lock size={14} style={{ marginRight: '5px' }} /> Admin Portal Login
-                </button>
-              ) : (
-                <button 
-                  type="button"
-                  className="duo-btn duo-btn-white"
-                  style={{ width: 'auto', padding: '0.4rem 1rem', borderRadius: '12px', fontSize: '0.85rem', boxShadow: 'none' }}
-                  onClick={() => { setAuthPortalMode('student'); setAuthError(''); setAuthSuccess(''); }}
-                >
-                  <User size={14} style={{ marginRight: '5px' }} /> Student Portal Login
-                </button>
-              )}
+            {/* Branding Side with Quiz/Student Video Background */}
+            <div className="login-branding-side">
+              {/* Student/Quiz related video - loops seamlessly */}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                poster="/ai_bg.png"
+                className="login-video-bg"
+              >
+                {/* Concentrated boy studying at home */}
+                <source src="https://assets.mixkit.co/videos/4761/4761-720.mp4" type="video/mp4" />
+                {/* Student making math notes */}
+                <source src="https://assets.mixkit.co/videos/50109/50109-720.mp4" type="video/mp4" />
+                {/* Student notes on wooden desk */}
+                <source src="https://assets.mixkit.co/videos/50111/50111-720.mp4" type="video/mp4" />
+              </video>
+
+              {/* Dark gradient overlay for readability */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(135deg, rgba(10,10,46,0.65) 0%, rgba(102,126,234,0.4) 100%)',
+                zIndex: 1
+              }}></div>
+
+              <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem', textAlign: 'center' }}>
+                <div style={{
+                  background: 'rgba(255,255,255,0.12)',
+                  backdropFilter: 'blur(12px)',
+                  borderRadius: '24px',
+                  padding: '1.5rem',
+                  marginBottom: '1.5rem',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  boxShadow: '0 8px 32px rgba(102,126,234,0.3)'
+                }}>
+                  <BrainCircuit size={64} color="#a78bfa" />
+                </div>
+                <h1 style={{
+                  fontSize: '2.4rem',
+                  fontWeight: '900',
+                  margin: '0 0 1rem 0',
+                  textShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                  letterSpacing: '-0.5px',
+                  lineHeight: 1.2
+                }}>Elevate Your<br/>Learning</h1>
+                <p style={{
+                  fontSize: '1.05rem',
+                  maxWidth: '320px',
+                  lineHeight: 1.7,
+                  color: 'rgba(255,255,255,0.85)',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.4)'
+                }}>AI-powered study sessions and practice tests to help you achieve your absolute best.</p>
+
+                {/* Feature pills */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '2rem', justifyContent: 'center' }}>
+                  {['Smart AI Analysis', 'Instant Feedback', '100+ Questions'].map((feat) => (
+                    <span key={feat} style={{
+                      background: 'rgba(255,255,255,0.15)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      borderRadius: '50px',
+                      padding: '0.35rem 1rem',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      color: '#fff',
+                      letterSpacing: '0.3px'
+                    }}>{feat}</span>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🦉</div>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
-                {authPortalMode === 'admin' ? 'Admin Portal Workspace' : 'Student Study Center'}
-              </h2>
-              <p style={{ color: 'var(--text-muted)', fontWeight: '700', marginTop: '5px', fontSize: '0.9rem' }}>
-                {authPortalMode === 'admin' ? 'Create, upload & distribute practice quizzes' : 'Access published AI study cards & tests'}
-              </p>
-            </div>
+            {/* Form Side */}
+            <div className="login-form-side">
+              <div className="login-card">
+                {/* PROFESSIONAL PORTAL TOGGLE */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+                  <div style={{
+                    display: 'flex',
+                    background: '#f1f5f9',
+                    borderRadius: '50px',
+                    padding: '5px',
+                    gap: '4px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.06)'
+                  }}>
+                    {/* Student Option */}
+                    <button
+                      type="button"
+                      onClick={() => { setAuthPortalMode('student'); setAuthError(''); setAuthSuccess(''); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        padding: '0.5rem 1.4rem',
+                        borderRadius: '50px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.88rem',
+                        fontWeight: '700',
+                        fontFamily: 'inherit',
+                        transition: 'all 0.25s ease',
+                        background: authPortalMode === 'student'
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : 'transparent',
+                        color: authPortalMode === 'student' ? '#fff' : '#64748b',
+                        boxShadow: authPortalMode === 'student'
+                          ? '0 4px 15px rgba(102,126,234,0.4)'
+                          : 'none',
+                        transform: authPortalMode === 'student' ? 'scale(1.02)' : 'scale(1)',
+                      }}
+                    >
+                      <User size={15} />
+                      Student
+                    </button>
+
+                    {/* Admin Option */}
+                    <button
+                      type="button"
+                      onClick={() => { setAuthPortalMode('admin'); setAuthError(''); setAuthSuccess(''); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        padding: '0.5rem 1.4rem',
+                        borderRadius: '50px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.88rem',
+                        fontWeight: '700',
+                        fontFamily: 'inherit',
+                        transition: 'all 0.25s ease',
+                        background: authPortalMode === 'admin'
+                          ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+                          : 'transparent',
+                        color: authPortalMode === 'admin' ? '#fff' : '#64748b',
+                        boxShadow: authPortalMode === 'admin'
+                          ? '0 4px 15px rgba(245,87,108,0.4)'
+                          : 'none',
+                        transform: authPortalMode === 'admin' ? 'scale(1.02)' : 'scale(1)',
+                      }}
+                    >
+                      <Lock size={15} />
+                      Admin
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '2rem' }}>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+                    {authPortalMode === 'admin' ? 'Admin Portal Workspace' : 'Welcome back'}
+                  </h2>
+                  <p style={{ color: '#6b7280', marginTop: '5px', fontSize: '0.95rem' }}>
+                    {authPortalMode === 'admin' ? 'Create, upload & distribute practice quizzes.' : 'Please enter your details to sign in.'}
+                  </p>
+                </div>
 
             {/* SIGN IN / SIGN UP TABS */}
             <div className="tab-switcher" style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' }}>
@@ -725,59 +893,116 @@ function App() {
             </form>
             
             {activeFormTab === 'signin' && authPortalMode === 'admin' && (
-              <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+              <div style={{ marginTop: '1.5rem', fontSize: '0.85rem', color: '#6b7280', textAlign: 'center' }}>
                 Default Seeded Credentials: <strong>admin@gmail.com</strong> / <strong>admin123</strong>
               </div>
             )}
+              </div>
+            </div>
           </motion.div>
         )}
 
-        {/* HOME / WELCOME VIEW (FOR LOGGED IN STUDENTS) */}
+        {/* HOME / WELCOME VIEW */}
         {user && view === 'home' && (
           <motion.div 
             key="home" 
-            className="main-card center-text"
+            className="main-card"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            style={{ maxWidth: '1000px', width: '100%', margin: '0 auto', textAlign: 'left' }}
           >
             {user.role === 'admin' ? (
               <div>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚙️</div>
-                <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>Admin Portal Dashboard</h2>
-                <p style={{ color: 'var(--text-muted)', fontWeight: '700', marginBottom: '2rem' }}>
-                  Welcome Admin, {user.name} ({user.email}). You can configure and publish test sessions.
-                </p>
-                <button className="duo-btn duo-btn-blue" onClick={() => setView('admin')} style={{ maxWidth: '300px', margin: '0 auto 10px' }}>
-                  <Settings size={20} /> Open AI Scanning Portal
-                </button>
-                <button className="duo-btn duo-btn-white" onClick={handleLogout} style={{ maxWidth: '300px', margin: '0 auto', boxShadow: 'none' }}>
-                  <LogOut size={20} /> Log Out / Back
-                </button>
+                <div className="dashboard-header-flex">
+                  <div>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '0 0 5px 0' }}>Admin Dashboard</h2>
+                    <p style={{ color: 'var(--text-muted)', fontWeight: '700', margin: 0 }}>
+                      Manage your uploaded quizzes, {user.name}.
+                    </p>
+                  </div>
+                  <button className="duo-btn duo-btn-blue" onClick={() => setView('admin')} style={{ width: 'auto', padding: '0.6rem 1.2rem' }}>
+                    <Settings size={20} /> Open AI Scanning Portal
+                  </button>
+                </div>
+
+                <h3 style={{ marginTop: '2rem' }}>My Uploaded Quizzes</h3>
+                {dashboardData.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem', border: '2px dashed var(--border)', borderRadius: '20px' }}>
+                    <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>You haven't uploaded any quizzes yet.</p>
+                  </div>
+                ) : (
+                  <div className="dashboard-grid">
+                    {dashboardData.map((q, idx) => (
+                      <div key={idx} className="glass-card">
+                        <div className="glass-card-header">{q.title || "Untitled Quiz"}</div>
+                        <div className="glass-card-body">
+                          <div>Questions: {q.questions?.length || 0}</div>
+                          <div>Uploaded: {new Date(q.created_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎓</div>
-                <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: 0 }}>
-                  Welcome back, {user.name}!
-                </h2>
-                <p style={{ color: 'var(--text-muted)', fontWeight: '800', margin: '10px 0 2rem' }}>
-                  {quizData.questions.length > 0 
-                    ? `A practice quiz with ${quizData.questions.length} questions is ready for you.` 
-                    : "No test has been uploaded yet. Please ask the Admin to upload one."}
-                </p>
-                
-                <button 
-                  className="duo-btn duo-btn-green" 
-                  onClick={startQuiz}
-                  disabled={quizData.questions.length === 0}
-                  style={{ maxWidth: '300px', margin: '0 auto 10px' }}
-                >
-                  <Play size={20} fill="#fff" /> Start Practice Test
-                </button>
-                <button className="duo-btn duo-btn-white" onClick={handleLogout} style={{ maxWidth: '300px', margin: '0 auto', boxShadow: 'none' }}>
-                  <LogOut size={20} /> Log Out / Back
-                </button>
+                <div className="dashboard-header-flex">
+                  <div>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '0 0 5px 0' }}>Welcome back, {user.name}!</h2>
+                    <p style={{ color: 'var(--text-muted)', fontWeight: '700', margin: 0 }}>
+                      Ready to level up your skills today?
+                    </p>
+                  </div>
+                </div>
+
+                {/* Dashboard Stats */}
+                <h3 style={{ marginTop: '2rem' }}>My Dashboard & Past Attempts</h3>
+                {dashboardData.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', border: '2px dashed var(--border)', borderRadius: '20px', marginBottom: '2rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>You haven't attempted any quizzes yet.</p>
+                  </div>
+                ) : (
+                  <div className="dashboard-grid" style={{ marginBottom: '2rem' }}>
+                    {dashboardData.slice(0, 6).map((attempt, idx) => (
+                      <div key={idx} className="glass-card" style={{ textAlign: 'center' }}>
+                        <div className="glass-card-header">{attempt.quiz_title}</div>
+                        <div className="score-ring-container" style={{ '--percentage': attempt.percentage }}>
+                          <div className="score-ring-inner">{attempt.percentage}%</div>
+                        </div>
+                        <div className="glass-card-body">
+                          Score: {attempt.score} / {attempt.total} <br/>
+                          <span style={{ fontSize: '0.8rem' }}>{new Date(attempt.timestamp).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Available Quizzes */}
+                <h3 style={{ marginTop: '2rem', borderTop: '2px solid var(--border)', paddingTop: '2rem' }}>Available Practice Tests</h3>
+                {quizzesList.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>No tests available right now.</p>
+                ) : (
+                  <div className="dashboard-grid">
+                    {quizzesList.map((quiz, idx) => (
+                      <div key={idx} className="glass-card">
+                        <div className="glass-card-header">{quiz.title || "Untitled Test"}</div>
+                        <div className="glass-card-body">
+                          <div>Questions: {quiz.questions?.length || 0}</div>
+                          <div>By: {quiz.faculty_email || "Admin"}</div>
+                        </div>
+                        <button 
+                          className="duo-btn duo-btn-green" 
+                          onClick={() => startQuiz(quiz)}
+                          style={{ marginTop: 'auto', padding: '0.6rem' }}
+                        >
+                          <Play size={18} fill="#fff" /> Play
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </motion.div>

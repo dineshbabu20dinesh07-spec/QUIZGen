@@ -271,7 +271,7 @@ body {
 }
 
 /* Card layout */
-.main-card, .login-card, .quiz-play-view, .admin-panel, .results-view {
+.main-card, .quiz-play-view, .admin-panel, .results-view {
   background: var(--card-bg);
   border: 2px solid var(--border);
   border-radius: 24px;
@@ -281,6 +281,245 @@ body {
   box-shadow: 0 8px 0 var(--border);
   margin-bottom: 2rem;
   text-align: left;
+}
+
+/* Super Professional Split Screen Login Theme */
+.app-container.login-mode {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  background-color: #ffffff;
+  overflow: hidden;
+  border-radius: 0;
+  z-index: 1;
+}
+
+.login-split-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+.login-branding-side {
+  flex: 1;
+  background-color: #0b5cff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  padding: 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-video-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.8; /* Make it blend slightly */
+}
+
+.login-video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(28, 176, 246, 0.7), rgba(11, 92, 255, 0.85));
+  z-index: 1;
+}
+
+.login-branding-side h1 {
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+  z-index: 2;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.login-branding-side p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  z-index: 2;
+  text-align: center;
+  max-width: 400px;
+}
+
+.login-form-side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #ffffff;
+  position: relative;
+  overflow-y: auto;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 3rem;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  margin: 0 auto;
+  color: #111827;
+}
+
+.login-card h2 {
+  color: #111827;
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.login-card p {
+  color: #6b7280 !important;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.login-card .duo-input-label {
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.login-card .duo-input {
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  color: #111827;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.login-card .duo-input::placeholder {
+  color: #9ca3af;
+}
+
+.login-card .duo-input:focus {
+  border-color: var(--playful-blue);
+  box-shadow: 0 0 0 3px rgba(28, 176, 246, 0.2);
+  outline: none;
+}
+
+.login-card .duo-divider {
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: none;
+  margin: 1.5rem 0;
+}
+
+.login-card .duo-divider::before, .login-card .duo-divider::after {
+  border-color: #e5e7eb;
+}
+
+.login-card .tab-switcher {
+  border-bottom: 1px solid #e5e7eb !important;
+  margin-bottom: 2rem !important;
+}
+
+.login-card .tab-btn {
+  color: #6b7280 !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  border-bottom-width: 2px !important;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.login-card .tab-btn[style*="solid"] {
+  color: #111827 !important;
+  border-color: #111827 !important;
+  text-shadow: none !important;
+}
+
+.login-card .duo-btn {
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  text-transform: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  border: 1px solid transparent;
+  transition: all 0.15s ease-in-out;
+}
+
+.login-card .duo-btn-blue, .login-card .duo-btn-green {
+  background-color: #111827;
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.login-card .duo-btn-blue:hover, .login-card .duo-btn-green:hover {
+  background-color: #374151;
+  transform: none;
+}
+
+.login-card .duo-btn-blue:active, .login-card .duo-btn-green:active {
+  transform: scale(0.98);
+  box-shadow: none;
+}
+
+.login-card .duo-btn-white {
+  background-color: #fff;
+  border-color: #d1d5db;
+  color: #374151;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.login-card .duo-btn-white:hover {
+  background-color: #f9fafb;
+  transform: none;
+}
+
+.login-card .duo-btn-white:active {
+  transform: scale(0.98);
+}
+
+.google-oauth-btn-wrapper .duo-btn-white {
+  width: 100% !important;
+  justify-content: center;
+  font-weight: 500;
+}
+
+/* responsive */
+@media (max-width: 768px) {
+  .login-split-layout {
+    flex-direction: column;
+  }
+  .login-branding-side {
+    flex: 0.3;
+    padding: 2rem;
+  }
+  .login-branding-side h1 {
+    font-size: 2rem;
+  }
+  .login-form-side {
+    flex: 0.7;
+    align-items: flex-start;
+  }
+  .login-card {
+    padding: 2rem;
+  }
 }
 
 .center-text {
@@ -828,4 +1067,78 @@ body {
   background-color: rgba(88, 204, 2, 0.1);
   border: 2px solid var(--playful-green);
   color: var(--playful-green-border);
+}
+
+/* Dashboard & Cards Styling */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 0 var(--border), 0 8px 16px rgba(0,0,0,0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 0 var(--border), 0 12px 24px rgba(0,0,0,0.08);
+}
+
+.glass-card-header {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.glass-card-body {
+  flex-grow: 1;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+}
+
+.score-ring-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: conic-gradient(var(--playful-green) calc(var(--percentage) * 1%), var(--border) 0);
+  position: relative;
+  margin: 0 auto 15px;
+}
+
+.score-ring-inner {
+  width: 60px;
+  height: 60px;
+  background: var(--card-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.dashboard-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 15px;
 }
