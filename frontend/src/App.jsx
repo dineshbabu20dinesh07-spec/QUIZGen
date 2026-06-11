@@ -700,60 +700,49 @@ function App() {
 
                 {/* Professional Feature Grid */}
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '10px',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  gap: '12px',
                   marginTop: '2rem',
                   width: '100%',
-                  maxWidth: '340px'
+                  maxWidth: '480px'
                 }}>
                   {[
-                    { icon: '⚡', label: 'AI Generator', desc: 'Instant quiz creation' },
-                    { icon: '📊', label: 'Score Tracker', desc: 'Real-time analytics' },
-                    { icon: '✅', label: 'Instant Results', desc: 'Auto-graded answers' },
-                    { icon: '🏆', label: 'Leaderboard', desc: 'Compete & rank up' },
+                    { icon: '⚡', label: 'AI Generator' },
+                    { icon: '📊', label: 'Score Tracker' },
+                    { icon: '✅', label: 'Instant Results' },
+                    { icon: '🏆', label: 'Leaderboard' },
                   ].map((feat) => (
                     <div key={feat.label} style={{
                       background: 'rgba(255,255,255,0.08)',
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
                       border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '14px',
-                      padding: '0.7rem 0.8rem',
+                      borderRadius: '50px',
+                      padding: '0.5rem 1rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '10px',
-                      textAlign: 'left',
+                      gap: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                     }}>
                       <div style={{
-                        fontSize: '1.2rem',
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
+                        fontSize: '1rem',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
                         background: 'rgba(167,139,250,0.25)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        flexShrink: 0,
                       }}>{feat.icon}</div>
-                      <div>
-                        <div style={{
-                          fontSize: '0.78rem',
-                          fontWeight: '800',
-                          color: '#fff',
-                          letterSpacing: '0.3px',
-                          lineHeight: 1.2,
-                          fontFamily: "'Nunito', sans-serif",
-                        }}>{feat.label}</div>
-                        <div style={{
-                          fontSize: '0.68rem',
-                          fontWeight: '500',
-                          color: 'rgba(255,255,255,0.6)',
-                          letterSpacing: '0.2px',
-                          marginTop: '2px',
-                          lineHeight: 1.2,
-                        }}>{feat.desc}</div>
-                      </div>
+                      <div style={{
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        color: '#fff',
+                        letterSpacing: '0.3px',
+                        fontFamily: "'Nunito', sans-serif",
+                      }}>{feat.label}</div>
                     </div>
                   ))}
                 </div>
