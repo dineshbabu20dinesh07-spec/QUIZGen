@@ -599,18 +599,18 @@ function App() {
                   textShadow: '0 4px 20px rgba(0,0,0,0.5)',
                   letterSpacing: '-0.5px',
                   lineHeight: 1.2
-                }}>Elevate Your<br/>Learning</h1>
+                }}>Master Every<br/>Quiz Challenge</h1>
                 <p style={{
                   fontSize: '1.05rem',
                   maxWidth: '320px',
                   lineHeight: 1.7,
                   color: 'rgba(255,255,255,0.85)',
                   textShadow: '0 2px 10px rgba(0,0,0,0.4)'
-                }}>AI-powered study sessions and practice tests to help you achieve your absolute best.</p>
+                }}>Upload your study material, let AI generate quizzes instantly, attempt them and track your score — all in one place.</p>
 
                 {/* Feature pills */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '2rem', justifyContent: 'center' }}>
-                  {['Smart AI Analysis', 'Instant Feedback', '100+ Questions'].map((feat) => (
+                  {['🤖 AI Quiz Generator', '📊 Score Tracker', '📝 Instant Results', '🏆 Leaderboard Ready'].map((feat) => (
                     <span key={feat} style={{
                       background: 'rgba(255,255,255,0.15)',
                       backdropFilter: 'blur(8px)',
