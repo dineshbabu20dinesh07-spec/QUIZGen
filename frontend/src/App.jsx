@@ -556,22 +556,8 @@ function App() {
           >
             {/* Branding Side with Quiz/Student Video Background */}
             <div className="login-branding-side">
-              {/* Student/Quiz related video - loops seamlessly */}
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                poster="/ai_bg.png"
-                className="login-video-bg"
-              >
-                {/* Concentrated boy studying at home */}
-                <source src="https://assets.mixkit.co/videos/4761/4761-720.mp4" type="video/mp4" />
-                {/* Student making math notes */}
-                <source src="https://assets.mixkit.co/videos/50109/50109-720.mp4" type="video/mp4" />
-                {/* Student notes on wooden desk */}
-                <source src="https://assets.mixkit.co/videos/50111/50111-720.mp4" type="video/mp4" />
-              </video>
+              {/* Animated AI Quiz Flow Background */}
+              <div className="login-animated-bg"></div>
 
               {/* Dark gradient overlay for readability */}
               <div style={{

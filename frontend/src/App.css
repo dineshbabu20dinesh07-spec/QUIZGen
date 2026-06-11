@@ -316,18 +316,33 @@ body {
   overflow: hidden;
 }
 
-.login-video-bg {
+@keyframes quizPan {
+  0% {
+    background-position: 0% 50%;
+    transform: scale(1.05);
+  }
+  50% {
+    background-position: 100% 50%;
+    transform: scale(1.1);
+  }
+  100% {
+    background-position: 0% 50%;
+    transform: scale(1.05);
+  }
+}
+
+.login-animated-bg {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
-  transform: translate(-50%, -50%);
-  object-fit: cover;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/quiz_bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
   z-index: 0;
-  opacity: 0.8; /* Make it blend slightly */
+  animation: quizPan 20s ease-in-out infinite;
+  opacity: 0.9;
 }
 
 .login-video-overlay {
