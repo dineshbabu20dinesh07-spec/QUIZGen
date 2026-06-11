@@ -50,10 +50,10 @@ const QuizAnimatedBg = () => {
       <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(108,99,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
       <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(0,212,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
 
-      {/* Center Laptop/Glass Screen */}
+      {/* Animated Laptop/Glass Screen tucked nicely to avoid overlap */}
       <div style={{
-        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-        width: '85%', maxWidth: '500px', height: '350px',
+        position: 'absolute', right: '-15px', bottom: '75px',
+        width: '380px', height: '260px',
         background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: '20px', backdropFilter: 'blur(16px)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -670,46 +670,55 @@ function App() {
                 zIndex: 1
               }}></div>
 
-              <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem', textAlign: 'center', height: '100%', width: '100%' }}>
+              <div style={{ zIndex: 2, position: 'absolute', inset: 0 }}>
                 
-                {/* Center Content Box (Brain + Text) */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                {/* Logo Top Left */}
+                <div style={{ position: 'absolute', top: '2.5rem', left: '2.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
                     background: 'rgba(255,255,255,0.12)',
                     backdropFilter: 'blur(12px)',
-                    borderRadius: '24px',
-                    padding: '1.5rem',
-                    marginBottom: '1.5rem',
+                    borderRadius: '16px',
+                    padding: '0.8rem',
                     border: '1px solid rgba(255,255,255,0.2)',
-                    boxShadow: '0 8px 32px rgba(102,126,234,0.3)'
+                    boxShadow: '0 4px 20px rgba(102,126,234,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
-                    <BrainCircuit size={64} color="#a78bfa" />
+                    <BrainCircuit size={36} color="#a78bfa" />
                   </div>
+                  <span style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '0.5px' }}>QuizGen AI</span>
+                </div>
+
+                {/* Main Text Below Logo */}
+                <div style={{ position: 'absolute', top: '9rem', left: '2.5rem', textAlign: 'left' }}>
                   <h1 style={{
-                    fontSize: '2.4rem',
+                    fontSize: '2.8rem',
                     fontWeight: '900',
                     margin: '0 0 1rem 0',
                     textShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                    letterSpacing: '-0.5px',
-                    lineHeight: 1.2
+                    letterSpacing: '-1px',
+                    lineHeight: 1.15
                   }}>Master Every<br/>Quiz Challenge</h1>
                   <p style={{
-                    fontSize: '1.05rem',
-                    maxWidth: '320px',
-                    lineHeight: 1.7,
+                    fontSize: '1.1rem',
+                    maxWidth: '380px',
+                    lineHeight: 1.6,
                     color: 'rgba(255,255,255,0.85)',
-                    textShadow: '0 2px 10px rgba(0,0,0,0.4)'
+                    textShadow: '0 2px 10px rgba(0,0,0,0.4)',
+                    margin: 0
                   }}>Upload your study material, let AI generate quizzes instantly, attempt them and track your score — all in one place.</p>
                 </div>
 
                 {/* Bottom Feature Grid (Badges) */}
                 <div style={{
+                  position: 'absolute',
+                  bottom: '2.5rem',
+                  left: '2.5rem',
                   display: 'flex',
                   flexWrap: 'nowrap',
-                  justifyContent: 'center',
+                  justifyContent: 'flex-start',
                   gap: '6px',
-                  width: '100%',
-                  paddingBottom: '1rem',
                 }}>
                   {[
                     { icon: '⚡', label: 'AI Generator' },
