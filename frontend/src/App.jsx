@@ -22,10 +22,114 @@ const decodeJwt = (token) => {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
     return JSON.parse(jsonPayload);
-  } catch (error) {
+    } catch (error) {
     console.error("JWT Decode error:", error);
     return null;
   }
+};
+
+// ----------------------------------------------------------------------
+// Custom Animated Quiz Flow Component (Replaces Video)
+// ----------------------------------------------------------------------
+const QuizAnimatedBg = () => {
+  const [phase, setPhase] = useState(0); // 0: Generating, 1: Answering, 2: Result
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPhase((prev) => (prev + 1) % 3);
+    }, 4000); // Change phase every 4 seconds
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, overflow: 'hidden', 
+      background: 'linear-gradient(135deg, #0a0a2e 0%, #1e1e4a 100%)', zIndex: 0
+    }}>
+      {/* Abstract Background Elements */}
+      <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(108,99,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
+      <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(0,212,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
+
+      {/* Center Laptop/Glass Screen */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '85%', maxWidth: '500px', height: '350px',
+        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '20px', backdropFilter: 'blur(16px)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)'
+      }}>
+        {/* Fake Window Header */}
+        <div style={{ height: '30px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', padding: '0 15px', gap: '6px' }}>
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f56' }}></div>
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e' }}></div>
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f' }}></div>
+        </div>
+
+        {/* Dynamic Content area */}
+        <div style={{ flex: 1, position: 'relative', padding: '20px' }}>
+          <AnimatePresence mode="wait">
+            
+            {phase === 0 && (
+              <motion.div key="phase0" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '15px' }}>
+                <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}>
+                  <BrainCircuit size={64} color="#6c63ff" />
+                </motion.div>
+                <div style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>AI Generating Quiz...</div>
+                <div style={{ width: '60%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <motion.div style={{ height: '100%', background: '#6c63ff' }} animate={{ width: ['0%', '100%'] }} transition={{ duration: 3.5, ease: 'easeInOut' }}></motion.div>
+                </div>
+              </motion.div>
+            )}
+
+            {phase === 1 && (
+              <motion.div key="phase1" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} transition={{ duration: 0.5 }}
+                style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '15px' }}>
+                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', fontWeight: 'bold' }}>QUESTION 1 OF 10</div>
+                <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '600', lineHeight: 1.4 }}>Which technology drives modern Large Language Models?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                  {['Transformers', 'Decision Trees', 'Linear Regression'].map((opt, i) => (
+                    <motion.div key={opt}
+                      initial={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
+                      animate={ i === 0 ? { background: 'rgba(39,201,63,0.2)', borderColor: '#27c93f' } : {}}
+                      transition={{ delay: i === 0 ? 1.5 : 0, duration: 0.3 }}
+                      style={{ padding: '12px 15px', borderRadius: '10px', border: '1px solid', color: '#fff', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {i === 0 && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f' }}></div></motion.div>}
+                      </div>
+                      {opt}
+                    </motion.div>
+                  ))}
+                </div>
+                {/* Fake Cursor */}
+                <motion.div initial={{ x: 100, y: 150, opacity: 0 }} animate={{ x: 20, y: 80, opacity: [0, 1, 1, 0] }} transition={{ duration: 2, ease: 'easeOut' }}
+                  style={{ position: 'absolute', zIndex: 10 }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="#333" strokeWidth="1"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {phase === 2 && (
+              <motion.div key="phase2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '15px' }}>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', bounce: 0.5, delay: 0.2 }}
+                  style={{ width: '100px', height: '100px', borderRadius: '50%', border: '6px solid #ffd700', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,215,0,0.1)', position: 'relative' }}>
+                  <Trophy size={40} color="#ffd700" style={{ position: 'absolute', top: '-25px' }} />
+                  <span style={{ color: '#fff', fontSize: '2rem', fontWeight: 'bold' }}>98<span style={{ fontSize: '1rem' }}>%</span></span>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+                  <div style={{ color: '#ffd700', fontSize: '1.4rem', fontWeight: '900', letterSpacing: '2px', textTransform: 'uppercase' }}>Excellent!</div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', marginTop: '5px', textAlign: 'center' }}>You mastered this topic.</div>
+                </motion.div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 function App() {
@@ -554,15 +658,15 @@ function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Branding Side with Quiz/Student Video Background */}
-            <div className="login-branding-side">
-              {/* Animated AI Quiz Flow Background */}
-              <div className="login-animated-bg"></div>
+            {/* Branding Side with CSS Animated UI Quiz Flow Component */}
+            <div className="login-branding-side" style={{ position: 'relative', overflow: 'hidden' }}>
+              
+              <QuizAnimatedBg />
 
-              {/* Dark gradient overlay for readability */}
+              {/* Dark gradient overlay for readability (Optional since component is already dark, but keeping for text contrast) */}
               <div style={{
                 position: 'absolute', inset: 0,
-                background: 'linear-gradient(135deg, rgba(10,10,46,0.65) 0%, rgba(102,126,234,0.4) 100%)',
+                background: 'linear-gradient(135deg, rgba(10,10,46,0.5) 0%, rgba(102,126,234,0.3) 100%)',
                 zIndex: 1
               }}></div>
 
