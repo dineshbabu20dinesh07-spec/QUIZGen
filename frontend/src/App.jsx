@@ -670,42 +670,46 @@ function App() {
                 zIndex: 1
               }}></div>
 
-              <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem', textAlign: 'center' }}>
-                <div style={{
-                  background: 'rgba(255,255,255,0.12)',
-                  backdropFilter: 'blur(12px)',
-                  borderRadius: '24px',
-                  padding: '1.5rem',
-                  marginBottom: '1.5rem',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  boxShadow: '0 8px 32px rgba(102,126,234,0.3)'
-                }}>
-                  <BrainCircuit size={64} color="#a78bfa" />
+              <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem', textAlign: 'center', height: '100%', width: '100%' }}>
+                
+                {/* Center Content Box (Brain + Text) */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.12)',
+                    backdropFilter: 'blur(12px)',
+                    borderRadius: '24px',
+                    padding: '1.5rem',
+                    marginBottom: '1.5rem',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    boxShadow: '0 8px 32px rgba(102,126,234,0.3)'
+                  }}>
+                    <BrainCircuit size={64} color="#a78bfa" />
+                  </div>
+                  <h1 style={{
+                    fontSize: '2.4rem',
+                    fontWeight: '900',
+                    margin: '0 0 1rem 0',
+                    textShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    letterSpacing: '-0.5px',
+                    lineHeight: 1.2
+                  }}>Master Every<br/>Quiz Challenge</h1>
+                  <p style={{
+                    fontSize: '1.05rem',
+                    maxWidth: '320px',
+                    lineHeight: 1.7,
+                    color: 'rgba(255,255,255,0.85)',
+                    textShadow: '0 2px 10px rgba(0,0,0,0.4)'
+                  }}>Upload your study material, let AI generate quizzes instantly, attempt them and track your score — all in one place.</p>
                 </div>
-                <h1 style={{
-                  fontSize: '2.4rem',
-                  fontWeight: '900',
-                  margin: '0 0 1rem 0',
-                  textShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                  letterSpacing: '-0.5px',
-                  lineHeight: 1.2
-                }}>Master Every<br/>Quiz Challenge</h1>
-                <p style={{
-                  fontSize: '1.05rem',
-                  maxWidth: '320px',
-                  lineHeight: 1.7,
-                  color: 'rgba(255,255,255,0.85)',
-                  textShadow: '0 2px 10px rgba(0,0,0,0.4)'
-                }}>Upload your study material, let AI generate quizzes instantly, attempt them and track your score — all in one place.</p>
 
-                {/* Professional Feature Grid */}
+                {/* Bottom Feature Grid (Badges) */}
                 <div style={{
                   display: 'flex',
                   flexWrap: 'nowrap',
                   justifyContent: 'center',
                   gap: '6px',
-                  marginTop: '1.5rem',
                   width: '100%',
+                  paddingBottom: '1rem',
                 }}>
                   {[
                     { icon: '⚡', label: 'AI Generator' },
