@@ -669,10 +669,10 @@ function App() {
                 zIndex: 1
               }}></div>
 
-              <div style={{ zIndex: 2, position: 'absolute', inset: 0, padding: '3rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left' }}>
+              <div style={{ zIndex: 2, position: 'absolute', inset: 0, padding: '3rem', display: 'flex', flexDirection: 'column' }}>
                 
                 {/* Top Left: Logo and Text Box */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '600px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '600px', textAlign: 'left' }}>
                   
                   {/* Logo Top Left */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
@@ -711,18 +711,13 @@ function App() {
                     margin: 0
                   }}>Welcome to Quiz Platform</p>
                 </div>
-              </div>
 
-              {/* Right Side: Laptop Animation positioned so it never overlaps the left text */}
-              <div style={{
-                position: 'absolute',
-                right: '-3rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                zIndex: 3,
-                width: '480px'
-              }}>
-                <QuizAnimatedBg />
+                {/* Video positioned perfectly in the center below the text */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2rem' }}>
+                  <div style={{ width: '100%', maxWidth: '480px' }}>
+                    <QuizAnimatedBg />
+                  </div>
+                </div>
               </div>
             </div>
 
