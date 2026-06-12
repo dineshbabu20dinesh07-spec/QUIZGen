@@ -316,6 +316,14 @@ body {
   overflow: hidden;
 }
 
+.login-form-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg);
+}
+
 @keyframes quizPan {
   0% {
     background-position: 0% 50%;
@@ -385,7 +393,7 @@ body {
 .login-card {
   width: 100%;
   max-width: 440px;
-  padding: 3rem;
+  padding: 1.5rem;
   box-sizing: border-box;
   background: transparent;
   border: none;
@@ -421,7 +429,7 @@ body {
   border: 1px solid #d1d5db;
   color: #111827;
   border-radius: 8px;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 1rem;
   font-weight: 500;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
@@ -543,7 +551,7 @@ body {
 
 /* Inputs styling */
 .duo-input-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
 }
 
 .duo-input-label {
@@ -551,7 +559,7 @@ body {
   font-weight: 700;
   font-size: 0.95rem;
   color: var(--text);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

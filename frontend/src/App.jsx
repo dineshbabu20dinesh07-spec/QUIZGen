@@ -725,7 +725,7 @@ function App() {
             <div className="login-form-side">
               <div className="login-card">
                 {/* PROFESSIONAL PORTAL TOGGLE */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
                   <div style={{
                     display: 'flex',
                     background: '#f1f5f9',
@@ -797,7 +797,7 @@ function App() {
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '2rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
                     {authPortalMode === 'admin' ? 'Admin Portal Workspace' : 'Welcome back'}
                   </h2>
@@ -807,7 +807,7 @@ function App() {
                 </div>
 
             {/* SIGN IN / SIGN UP TABS */}
-            <div className="tab-switcher" style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' }}>
+            <div className="tab-switcher" style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1rem' }}>
               <button 
                 type="button"
                 className={`tab-btn`}
@@ -888,7 +888,7 @@ function App() {
               )}
             </div>
 
-            <div className="duo-divider">or use email login</div>
+            <div className="duo-divider" style={{ margin: '0.8rem 0' }}>or use email login</div>
 
             {/* DYNAMIC SIGN IN / SIGN UP FORM */}
             <form onSubmit={handleAuthSubmit}>
