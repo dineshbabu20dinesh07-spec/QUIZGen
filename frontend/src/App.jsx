@@ -41,7 +41,8 @@ const QuizAnimatedBg = () => {
     return () => clearInterval(timer);
   }, []);
 
-      {/* Animated Laptop/Glass Screen */}
+  return (
+      // Animated Laptop/Glass Screen
       <div style={{
         position: 'relative',
         width: '100%', maxWidth: '440px', height: '300px',
