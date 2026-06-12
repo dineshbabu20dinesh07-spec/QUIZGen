@@ -120,6 +120,7 @@ const QuizAnimatedBg = () => {
           </AnimatePresence>
         </div>
       </div>
+  );
 };
 
 function App() {
@@ -670,7 +671,7 @@ function App() {
               <div style={{ zIndex: 2, position: 'absolute', inset: 0, padding: '3rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left' }}>
                 
                 {/* Top Left: Logo and Text Box */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '380px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '600px' }}>
                   
                   {/* Logo Top Left */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
@@ -692,14 +693,15 @@ function App() {
 
                   {/* Main Text Below Logo */}
                   <h1 style={{
-                    fontSize: '2.8rem',
+                    fontSize: '2.2rem',
                     fontWeight: '900',
                     margin: '0 0 1rem 0',
                     textShadow: '0 4px 20px rgba(0,0,0,0.5)',
                     letterSpacing: '-1px',
                     lineHeight: 1.15,
-                    color: '#fff'
-                  }}>Master Every<br/>Quiz Challenge</h1>
+                    color: '#fff',
+                    whiteSpace: 'nowrap'
+                  }}>Master Every Quiz Challenge</h1>
                   <p style={{
                     fontSize: '1.1rem',
                     lineHeight: 1.6,
@@ -707,55 +709,6 @@ function App() {
                     textShadow: '0 2px 10px rgba(0,0,0,0.4)',
                     margin: 0
                   }}>Welcome to Quiz Platform</p>
-                </div>
-
-                {/* Bottom Left: Feature Grid (Icon on top, Text below) */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '12px',
-                  maxWidth: '380px',
-                }}>
-                  {[
-                    { icon: '⚡', label: 'AI Generator' },
-                    { icon: '📊', label: 'Score Tracker' },
-                    { icon: '✅', label: 'Instant Results' },
-                    { icon: '🏆', label: 'Leaderboard' },
-                  ].map((feat) => (
-                    <div key={feat.label} style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '16px',
-                      padding: '1rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{
-                        fontSize: '1.5rem',
-                        background: 'rgba(167,139,250,0.25)',
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>{feat.icon}</div>
-                      <div style={{
-                        fontSize: '0.8rem',
-                        fontWeight: '700',
-                        color: '#fff',
-                        letterSpacing: '0.2px',
-                        fontFamily: "'Nunito', sans-serif",
-                      }}>{feat.label}</div>
-                    </div>
-                  ))}
                 </div>
               </div>
 
