@@ -689,7 +689,7 @@ function App() {
                     }}>
                       <BrainCircuit size={36} color="#a78bfa" />
                     </div>
-                    <span style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '0.5px' }}>QuizGen AI</span>
+                    <span style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '0.5px' }}>QuizGen</span>
                   </div>
 
                   {/* Main Text Below Logo */}
