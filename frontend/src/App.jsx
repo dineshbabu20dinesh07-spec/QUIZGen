@@ -69,7 +69,7 @@ const QuizAnimatedBg = () => {
                 <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}>
                   <BrainCircuit size={64} color="#6c63ff" />
                 </motion.div>
-                <div style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>AI Generating Quiz...</div>
+                <div style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>Skill up Quizz zone</div>
                 <div style={{ width: '60%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
                   <motion.div style={{ height: '100%', background: '#6c63ff' }} animate={{ width: ['0%', '100%'] }} transition={{ duration: 3.5, ease: 'easeInOut' }}></motion.div>
                 </div>
