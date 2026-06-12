@@ -41,23 +41,15 @@ const QuizAnimatedBg = () => {
     return () => clearInterval(timer);
   }, []);
 
-  return (
-    <div style={{
-      position: 'absolute', inset: 0, overflow: 'hidden', 
-      background: 'linear-gradient(135deg, #0a0a2e 0%, #1e1e4a 100%)', zIndex: 0
-    }}>
-      {/* Abstract Background Elements */}
-      <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(108,99,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
-      <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(0,212,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
-
-      {/* Animated Laptop/Glass Screen tucked nicely to avoid overlap */}
+      {/* Animated Laptop/Glass Screen */}
       <div style={{
-        position: 'absolute', right: '-15px', bottom: '75px',
-        width: '380px', height: '260px',
+        position: 'relative',
+        width: '100%', maxWidth: '440px', height: '300px',
         background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: '20px', backdropFilter: 'blur(16px)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)'
+        boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)',
+        zIndex: 2
       }}>
         {/* Fake Window Header */}
         <div style={{ height: '30px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', padding: '0 15px', gap: '6px' }}>
@@ -128,8 +120,6 @@ const QuizAnimatedBg = () => {
           </AnimatePresence>
         </div>
       </div>
-    </div>
-  );
 };
 
 function App() {
@@ -661,64 +651,70 @@ function App() {
             {/* Branding Side with CSS Animated UI Quiz Flow Component */}
             <div className="login-branding-side" style={{ position: 'relative', overflow: 'hidden' }}>
               
-              <QuizAnimatedBg />
+              {/* Background Gradients */}
+              <div style={{
+                position: 'absolute', inset: 0, overflow: 'hidden', 
+                background: 'linear-gradient(135deg, #0a0a2e 0%, #1e1e4a 100%)', zIndex: 0
+              }}>
+                <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(108,99,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
+                <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(0,212,255,0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)' }}></div>
+              </div>
 
-              {/* Dark gradient overlay for readability (Optional since component is already dark, but keeping for text contrast) */}
+              {/* Dark overlay for contrast */}
               <div style={{
                 position: 'absolute', inset: 0,
                 background: 'linear-gradient(135deg, rgba(10,10,46,0.5) 0%, rgba(102,126,234,0.3) 100%)',
                 zIndex: 1
               }}></div>
 
-              <div style={{ zIndex: 2, position: 'absolute', inset: 0 }}>
+              <div style={{ zIndex: 2, position: 'absolute', inset: 0, padding: '3rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left' }}>
                 
-                {/* Logo Top Left */}
-                <div style={{ position: 'absolute', top: '2.5rem', left: '2.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    background: 'rgba(255,255,255,0.12)',
-                    backdropFilter: 'blur(12px)',
-                    borderRadius: '16px',
-                    padding: '0.8rem',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    boxShadow: '0 4px 20px rgba(102,126,234,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <BrainCircuit size={36} color="#a78bfa" />
+                {/* Top Left: Logo and Text Box */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '380px' }}>
+                  
+                  {/* Logo Top Left */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+                    <div style={{
+                      background: 'rgba(255,255,255,0.12)',
+                      backdropFilter: 'blur(12px)',
+                      borderRadius: '16px',
+                      padding: '0.8rem',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      boxShadow: '0 4px 20px rgba(102,126,234,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <BrainCircuit size={36} color="#a78bfa" />
+                    </div>
+                    <span style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '0.5px' }}>QuizGen AI</span>
                   </div>
-                  <span style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '0.5px' }}>QuizGen AI</span>
-                </div>
 
-                {/* Main Text Below Logo */}
-                <div style={{ position: 'absolute', top: '9rem', left: '2.5rem', textAlign: 'left' }}>
+                  {/* Main Text Below Logo */}
                   <h1 style={{
                     fontSize: '2.8rem',
                     fontWeight: '900',
                     margin: '0 0 1rem 0',
                     textShadow: '0 4px 20px rgba(0,0,0,0.5)',
                     letterSpacing: '-1px',
-                    lineHeight: 1.15
+                    lineHeight: 1.15,
+                    color: '#fff'
                   }}>Master Every<br/>Quiz Challenge</h1>
                   <p style={{
                     fontSize: '1.1rem',
-                    maxWidth: '380px',
                     lineHeight: 1.6,
                     color: 'rgba(255,255,255,0.85)',
                     textShadow: '0 2px 10px rgba(0,0,0,0.4)',
                     margin: 0
-                  }}>Upload your study material, let AI generate quizzes instantly, attempt them and track your score — all in one place.</p>
+                  }}>Welcome to Quiz Platform</p>
                 </div>
 
-                {/* Bottom Feature Grid (Badges) */}
+                {/* Bottom Left: Feature Grid (Icon on top, Text below) */}
                 <div style={{
-                  position: 'absolute',
-                  bottom: '2.5rem',
-                  left: '2.5rem',
-                  display: 'flex',
-                  flexWrap: 'nowrap',
-                  justifyContent: 'flex-start',
-                  gap: '6px',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '12px',
+                  maxWidth: '380px',
                 }}>
                   {[
                     { icon: '⚡', label: 'AI Generator' },
@@ -731,27 +727,28 @@ function App() {
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
                       border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '50px',
-                      padding: '0.4rem 0.6rem',
+                      borderRadius: '16px',
+                      padding: '1rem',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: '5px',
+                      justifyContent: 'center',
+                      gap: '8px',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      whiteSpace: 'nowrap'
+                      textAlign: 'center'
                     }}>
                       <div style={{
-                        fontSize: '0.85rem',
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '50%',
+                        fontSize: '1.5rem',
                         background: 'rgba(167,139,250,0.25)',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
+                        justifyContent: 'center'
                       }}>{feat.icon}</div>
                       <div style={{
-                        fontSize: '0.72rem',
+                        fontSize: '0.8rem',
                         fontWeight: '700',
                         color: '#fff',
                         letterSpacing: '0.2px',
@@ -760,6 +757,18 @@ function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Right Side: Laptop Animation positioned so it never overlaps the left text */}
+              <div style={{
+                position: 'absolute',
+                right: '-3rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 3,
+                width: '480px'
+              }}>
+                <QuizAnimatedBg />
               </div>
             </div>
 
