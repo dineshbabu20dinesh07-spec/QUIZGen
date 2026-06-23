@@ -101,8 +101,25 @@ init_api_keys(api_keys_collection, MONGO_AVAILABLE)
 # CORS — Dynamically loaded from domain registry
 # ─────────────────────────────────────────────
 allowed_origins = get_all_allowed_origins()
-if not allowed_origins:
-    allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+
+# Always include these production + local origins
+PRODUCTION_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://quiz-gen-two.vercel.app",
+    "https://quizgen-2.onrender.com",
+    "https://quiz-gen-two-git-main-dineshbabu20dinesh07-4145.vercel.app",
+]
+
+# Add any env-configured extra origins
+EXTRA_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "")
+if EXTRA_ORIGINS:
+    PRODUCTION_ORIGINS += [o.strip() for o in EXTRA_ORIGINS.split(",") if o.strip()]
+
+# Merge all
+for origin in PRODUCTION_ORIGINS:
+    if origin not in allowed_origins:
+        allowed_origins.append(origin)
 
 app.add_middleware(
     CORSMiddleware,
