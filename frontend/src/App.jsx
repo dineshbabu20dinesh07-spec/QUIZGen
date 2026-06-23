@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Upload, Play, CheckCircle, RefreshCw, Settings, ChevronLeft, 
   ChevronRight, Trophy, BrainCircuit, Send, User, LogOut, Lock, 
-  ShieldAlert, Smartphone, ShieldCheck, Mail 
+  ShieldAlert, Smartphone, ShieldCheck, Mail, Eye, EyeOff 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -139,6 +139,7 @@ function App() {
   const [formPassword, setFormPassword] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
+  const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
 
@@ -156,22 +157,51 @@ function App() {
   // Dashboard states
   const [quizzesList, setQuizzesList] = useState([]);
   const [dashboardData, setDashboardData] = useState([]);
+  const [activeDashboardTab, setActiveDashboardTab] = useState('overview');
 
-  // Fetch session on load and retrieve current quiz
+  // Session loading — prevents white screen while checking cookie
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  // Pagination state
+  const [quizzesPage, setQuizzesPage] = useState(1);
+  const [quizPageInfo, setQuizPageInfo] = useState({ total: 0, total_pages: 1 });
+  const [attemptsPage, setAttemptsPage] = useState(1);
+  const [attemptsPageInfo, setAttemptsPageInfo] = useState({ total: 0, total_pages: 1 });
+
+  // Fetch session from cookie on app load
   useEffect(() => {
-    const savedUser = localStorage.getItem('current_user');
-    let u = null;
-    if (savedUser) {
+    const restoreSession = async () => {
       try {
-        u = JSON.parse(savedUser);
+        // Try cookie-based session (/me reads the HttpOnly session cookie)
+        const res = await axios.get(`${API_URL}/me`, { withCredentials: true });
+        const u = {
+          name: res.data.name,
+          email: res.data.email,
+          role: res.data.role,
+          domain_id: res.data.domain_id,
+          picture: '',
+        };
         setUser(u);
         setView('home');
-      } catch (e) {
-        console.error("Failed to parse user session", e);
+        fetchDashboardData(u);
+        fetchQuizzes();
+      } catch {
+        // No active session — show login page
+        setUser(null);
+        // Still fetch current quiz (no auth needed)
+        try {
+          const currentRes = await axios.get(`${API_URL}/get-quiz`, { withCredentials: true });
+          if (currentRes.data && currentRes.data.questions) {
+            setQuizData(currentRes.data);
+          }
+        } catch {
+          // ignore
+        }
+      } finally {
+        setSessionLoading(false); // Done checking — now show UI
       }
-    }
-    fetchQuizzes();
-    if (u) fetchDashboardData(u);
+    };
+    restoreSession();
   }, []);
 
   // Initialize Google Token Client for programmatically launching Google Account picker
@@ -195,21 +225,25 @@ function App() {
                   
                   const payload = res.data;
                   if (payload) {
-                    const loggedUser = {
+                    const googleUser = {
                       name: payload.name || payload.given_name || payload.email.split('@')[0],
                       role: authPortalMode, 
                       email: payload.email,
                       picture: payload.picture
                     };
                     
+                    const backendRes = await axios.post(`${API_URL}/signin-google`, googleUser, { withCredentials: true });
+                    const loggedUser = backendRes.data.user;
+                    
                     setUser(loggedUser);
-                    localStorage.setItem('current_user', JSON.stringify(loggedUser));
                     
                     if (authPortalMode === 'admin') {
                       setView('admin');
                     } else {
                       setView('home');
                     }
+                    fetchQuizzes();
+                    fetchDashboardData(loggedUser);
                   } else {
                     setAuthError('Unable to extract Google Account details.');
                   }
@@ -244,49 +278,70 @@ function App() {
     }
   };
 
-  const completeBypassSignIn = (email, name) => {
+  const completeBypassSignIn = async (email, name) => {
     setAuthError('');
     setAuthSuccess('');
-    const loggedUser = {
-      name: name,
-      role: authPortalMode,
-      email: email,
-      picture: ''
-    };
-    setUser(loggedUser);
-    localStorage.setItem('current_user', JSON.stringify(loggedUser));
-    setShowBypassOverlay(false);
-    
-    if (authPortalMode === 'admin') {
-      setView('admin');
-    } else {
-      setView('home');
+    try {
+      setLoading(true);
+      const res = await axios.post(`${API_URL}/signin-google`, {
+        email: email,
+        name: name,
+        role: authPortalMode,
+        picture: ''
+      }, { withCredentials: true });
+      
+      const loggedUser = res.data.user;
+      setUser(loggedUser);
+      setShowBypassOverlay(false);
+      
+      if (authPortalMode === 'admin') {
+        setView('admin');
+      } else {
+        setView('home');
+      }
+      fetchQuizzes();
+      fetchDashboardData(loggedUser);
+    } catch (err) {
+      setAuthError(err.response?.data?.detail || 'Bypass sign in failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = async (page = 1) => {
     try {
-      const res = await axios.get(`${API_URL}/quizzes`);
-      setQuizzesList(res.data);
-      const currentRes = await axios.get(`${API_URL}/get-quiz`);
+      // Get current quiz (no auth needed)
+      const currentRes = await axios.get(`${API_URL}/get-quiz`, { withCredentials: true });
       if (currentRes.data && currentRes.data.questions) {
         setQuizData(currentRes.data);
+      }
+      // Get paginated quiz list (requires auth — catch silently if not logged in)
+      try {
+        const res = await axios.get(`${API_URL}/quizzes?page=${page}&page_size=10`, { withCredentials: true });
+        setQuizzesList(res.data.items || []);
+        setQuizPageInfo({ total: res.data.total, total_pages: res.data.total_pages });
+        setQuizzesPage(page);
+      } catch {
+        // Not logged in yet — skip quiz list
       }
     } catch (err) {
       console.error("Failed to fetch quizzes");
     }
   };
 
-  const fetchDashboardData = async (currentUser) => {
+  const fetchDashboardData = async (currentUser, page = 1) => {
     if (!currentUser) return;
     try {
-      if (currentUser.role === 'admin') {
-        const res = await axios.get(`${API_URL}/faculty-quizzes?email=${currentUser.email}`);
-        setDashboardData(res.data);
+      if (currentUser.role === 'admin' || currentUser.role === 'faculty') {
+        const res = await axios.get(`${API_URL}/faculty-quizzes?page=${page}&page_size=10`, { withCredentials: true });
+        setDashboardData(res.data.items || []);
+        setAttemptsPageInfo({ total: res.data.total, total_pages: res.data.total_pages });
       } else {
-        const res = await axios.get(`${API_URL}/student-attempts?email=${currentUser.email}`);
-        setDashboardData(res.data);
+        const res = await axios.get(`${API_URL}/student-attempts?page=${page}&page_size=10`, { withCredentials: true });
+        setDashboardData(res.data.items || []);
+        setAttemptsPageInfo({ total: res.data.total, total_pages: res.data.total_pages });
       }
+      setAttemptsPage(page);
     } catch (err) {
       console.error("Failed to fetch dashboard data");
     }
@@ -302,10 +357,14 @@ function App() {
     formData.append('file', file);
 
     try {
-      const res = await axios.post(`${API_URL}/upload`, formData);
+      const res = await axios.post(`${API_URL}/upload`, formData, { withCredentials: true });
       setAdminPreview(res.data);
     } catch (err) {
-      alert("Analysis failed. Try a smaller file or check API quota.");
+      if (err.response?.status === 403) {
+        alert("Access Denied: Only Faculty and Admin can upload quiz files.");
+      } else {
+        alert("Analysis failed. Try a smaller file or check API quota.");
+      }
     } finally {
       setLoading(false);
     }
@@ -315,14 +374,18 @@ function App() {
     if (!adminPreview) return;
     try {
       const payload = { ...adminPreview, faculty_email: user.email };
-      await axios.post(`${API_URL}/save-quiz`, payload);
+      await axios.post(`${API_URL}/save-quiz`, payload, { withCredentials: true });
       setAdminPreview(null);
       alert("Quiz Published!");
       fetchQuizzes();
       fetchDashboardData(user);
       setView('home'); 
     } catch (err) {
-      alert("Failed to save quiz");
+      if (err.response?.status === 403) {
+        alert("Access Denied: Only Faculty and Admin can save quizzes.");
+      } else {
+        alert("Failed to save quiz");
+      }
     }
   };
 
@@ -346,13 +409,6 @@ function App() {
       ...prev,
       [currentQuestionIdx]: option
     }));
-
-    // Auto-move to next after a tiny delay for visual confirmation
-    setTimeout(() => {
-      if (currentQuestionIdx < quizData.questions.length - 1) {
-        setCurrentQuestionIdx(prev => prev + 1);
-      }
-    }, 400); 
   };
 
   const nextQuestion = () => {
@@ -387,7 +443,7 @@ function App() {
           score: finalScore.correct,
           total: finalScore.total,
           percentage: Math.round((finalScore.correct / finalScore.total) * 100)
-       });
+       }, { withCredentials: true });
        fetchDashboardData(user);
     } catch (err) {
        console.error("Failed to save attempt");
@@ -396,7 +452,7 @@ function App() {
     setView('results');
   };
 
-  // Local Accounts Auth Submit
+  // Local Accounts Auth Submit — Now uses cookie-based auth
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -421,75 +477,93 @@ function App() {
           phone: `${formCountryCode} ${formPhone}`,
           role: authPortalMode
         };
-        const res = await axios.post(`${API_URL}/signup`, payload);
-        const newUser = res.data;
-        
-        // Auto login directly
-        setUser(newUser);
-        localStorage.setItem('current_user', JSON.stringify(newUser));
+        await axios.post(`${API_URL}/signup`, payload, { withCredentials: true });
 
-        // Redirect
-        if (authPortalMode === 'admin') {
-          setView('admin');
-        } else {
-          setView('home');
-        }
-
-        // Reset
-        setFormName('');
-        setFormEmail('');
+        // ✅ Account created — show Sign In tab with success message
+        const createdEmail = formEmail;
+        setFormName(''); setFormPhone('');
         setFormPassword('');
-        setFormPhone('');
+        // Keep email pre-filled for easy sign in
+        setFormEmail(createdEmail);
+        setAuthSuccess('✅ Account created successfully! Please sign in below.');
+        setActiveFormTab('signin'); // Switch to Sign In tab
       } catch (err) {
-        if (err.response && err.response.data && err.response.data.detail) {
-          setAuthError(err.response.data.detail);
-        } else {
-          setAuthError('Sign up failed. Please try again.');
-        }
+        setAuthError(err.response?.data?.detail || 'Sign up failed. Please try again.');
       }
     } else {
-      // Sign In Handler
+      // Sign In Handler — cookie is set by server response
       if (!formEmail || !formPassword) {
         setAuthError('Please enter your email and password.');
         return;
       }
 
       try {
-        const payload = {
-          email: formEmail,
-          password: formPassword,
-          role: authPortalMode
-        };
-        const res = await axios.post(`${API_URL}/signin`, payload);
-        const matchingUser = res.data;
-
+        const res = await axios.post(
+          `${API_URL}/signin`,
+          { email: formEmail, password: formPassword, role: authPortalMode },
+          { withCredentials: true }  // 🍪 Cookie is received here!
+        );
+        const matchingUser = res.data.user;
         setUser(matchingUser);
-        localStorage.setItem('current_user', JSON.stringify(matchingUser));
-        if (authPortalMode === 'admin') {
-          setView('admin');
-        } else {
-          setView('home');
-        }
+
+        if (authPortalMode === 'admin') setView('admin');
+        else setView('home');
+
+        // Fetch data for the newly logged-in user
+        fetchQuizzes();
+        fetchDashboardData(matchingUser);
       } catch (err) {
-        if (err.response && err.response.data && err.response.data.detail) {
-          setAuthError(err.response.data.detail);
-        } else {
-          setAuthError('Invalid email or password credentials. Please verify your entries.');
-        }
+        setAuthError(err.response?.data?.detail || 'Invalid email or password. Please verify your entries.');
       }
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Tell server to clear cookie
+      await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+    } catch {
+      // Ignore errors — clear client state anyway
+    }
     setUser(null);
-    localStorage.removeItem('current_user');
     setView('home');
     setFormName('');
     setFormEmail('');
     setFormPassword('');
+    setShowPassword(false);
     setAuthError('');
     setAuthSuccess('');
+    setDashboardData([]);
+    setQuizzesList([]);
+    setActiveDashboardTab('overview');
   };
+
+  // Don't render anything until session check is done (prevents white screen flicker)
+  if (sessionLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a0a2e 0%, #1e1e4a 100%)',
+        gap: '20px'
+      }}>
+        <div style={{
+          width: '60px', height: '60px',
+          border: '4px solid rgba(108,99,255,0.2)',
+          borderTop: '4px solid #6c63ff',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '600', fontSize: '1rem', margin: 0 }}>
+          Loading QuizGen...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={`app-container ${!user ? 'login-mode' : ''}`}>
@@ -725,7 +799,7 @@ function App() {
             <div className="login-form-side">
               <div className="login-card">
                 {/* PROFESSIONAL PORTAL TOGGLE */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
                   <div style={{
                     display: 'flex',
                     background: '#f1f5f9',
@@ -797,21 +871,21 @@ function App() {
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '1rem' }}>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
-                    {authPortalMode === 'admin' ? 'Admin Portal Workspace' : 'Welcome back'}
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0 }}>
+                    {authPortalMode === 'admin' ? 'Admin Portal' : 'Welcome back'}
                   </h2>
-                  <p style={{ color: '#6b7280', marginTop: '5px', fontSize: '0.95rem' }}>
+                  <p style={{ color: '#6b7280', marginTop: '3px', fontSize: '0.9rem', marginBottom: 0 }}>
                     {authPortalMode === 'admin' ? 'Create, upload & distribute practice quizzes.' : 'Please enter your details to sign in.'}
                   </p>
                 </div>
 
             {/* SIGN IN / SIGN UP TABS */}
-            <div className="tab-switcher" style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1rem' }}>
+            <div className="tab-switcher" style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '0.6rem' }}>
               <button 
                 type="button"
                 className={`tab-btn`}
-                onClick={() => { setActiveFormTab('signin'); setAuthError(''); setAuthSuccess(''); }}
+                onClick={() => { setActiveFormTab('signin'); setAuthError(''); setAuthSuccess(''); setShowPassword(false); }}
                 style={{
                   flex: 1, padding: '0.8rem', background: 'none', border: 'none',
                   fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer',
@@ -824,7 +898,7 @@ function App() {
               <button 
                 type="button"
                 className={`tab-btn`}
-                onClick={() => { setActiveFormTab('signup'); setAuthError(''); setAuthSuccess(''); }}
+                onClick={() => { setActiveFormTab('signup'); setAuthError(''); setAuthSuccess(''); setShowPassword(false); }}
                 style={{
                   flex: 1, padding: '0.8rem', background: 'none', border: 'none',
                   fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer',
@@ -850,45 +924,49 @@ function App() {
               </div>
             )}
 
-            {/* GOOGLE SIGN-IN CONTAINER */}
-            <div className="google-oauth-btn-wrapper">
-              <button 
-                type="button" 
-                className="duo-btn duo-btn-white" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: '10px', 
-                  width: '320px', 
-                  margin: '0 auto 10px',
-                  textTransform: 'none',
-                  fontSize: '0.95rem'
-                }}
-                onClick={handleGoogleSignInClick}
-              >
-                <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
-              
-              {/* BYPASS BUTTON FOR LOCAL DEV */}
-              {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+            {/* GOOGLE SIGN-IN CONTAINER — only on Sign In tab */}
+            {activeFormTab === 'signin' && (
+              <div className="google-oauth-btn-wrapper">
                 <button 
                   type="button" 
-                  className="google-bypass-link"
-                  onClick={() => setShowBypassOverlay(true)}
+                  className="duo-btn duo-btn-white" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '10px', 
+                    width: '320px', 
+                    margin: '0 auto 8px',
+                    textTransform: 'none',
+                    fontSize: '0.95rem'
+                  }}
+                  onClick={handleGoogleSignInClick}
                 >
-                  Mock Google OAuth bypass (locally test login)
+                  <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  <span>Continue with Google</span>
                 </button>
-              )}
-            </div>
+                
+                {/* BYPASS BUTTON FOR LOCAL DEV */}
+                {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+                  <button 
+                    type="button" 
+                    className="google-bypass-link"
+                    onClick={() => setShowBypassOverlay(true)}
+                  >
+                    Mock Google OAuth bypass (locally test login)
+                  </button>
+                )}
+              </div>
+            )}
 
-            <div className="duo-divider" style={{ margin: '0.8rem 0' }}>or use email login</div>
+            {activeFormTab === 'signin' && (
+              <div className="duo-divider" style={{ margin: '0.5rem 0' }}>or use email login</div>
+            )}
 
             {/* DYNAMIC SIGN IN / SIGN UP FORM */}
             <form onSubmit={handleAuthSubmit}>
@@ -961,13 +1039,37 @@ function App() {
 
               <div className="duo-input-group">
                 <label className="duo-input-label">Password</label>
-                <input 
-                  type="password" 
-                  className="duo-input" 
-                  placeholder="••••••••" 
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    className="duo-input" 
+                    placeholder="••••••••" 
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                    style={{ paddingRight: '40px', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#9ca3af',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0,
+                      transition: 'color 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#4b5563'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className={authPortalMode === 'admin' ? 'duo-btn duo-btn-blue' : 'duo-btn duo-btn-green'}>
@@ -978,7 +1080,7 @@ function App() {
                 <button 
                   type="button" 
                   className="duo-btn duo-btn-white" 
-                  style={{ marginTop: '10px', boxShadow: 'none' }}
+                  style={{ marginTop: '6px', boxShadow: 'none' }}
                   onClick={() => { setActiveFormTab('signin'); setAuthError(''); setAuthSuccess(''); }}
                 >
                   Back to Sign In
@@ -987,8 +1089,8 @@ function App() {
             </form>
             
             {activeFormTab === 'signin' && authPortalMode === 'admin' && (
-              <div style={{ marginTop: '1.5rem', fontSize: '0.85rem', color: '#6b7280', textAlign: 'center' }}>
-                Default Seeded Credentials: <strong>admin@gmail.com</strong> / <strong>admin123</strong>
+              <div style={{ marginTop: '0.8rem', fontSize: '0.82rem', color: '#6b7280', textAlign: 'center' }}>
+                Default: <strong>admin@gmail.com</strong> / <strong>admin123</strong>
               </div>
             )}
               </div>
@@ -1000,105 +1102,345 @@ function App() {
         {user && view === 'home' && (
           <motion.div 
             key="home" 
-            className="main-card"
+            className="dashboard-layout"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            style={{ maxWidth: '1000px', width: '100%', margin: '0 auto', textAlign: 'left' }}
           >
-            {user.role === 'admin' ? (
-              <div>
-                <div className="dashboard-header-flex">
-                  <div>
-                    <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '0 0 5px 0' }}>Admin Dashboard</h2>
-                    <p style={{ color: 'var(--text-muted)', fontWeight: '700', margin: 0 }}>
-                      Manage your uploaded quizzes, {user.name}.
-                    </p>
-                  </div>
-                  <button className="duo-btn duo-btn-blue" onClick={() => setView('admin')} style={{ width: 'auto', padding: '0.6rem 1.2rem' }}>
-                    <Settings size={20} /> Open AI Scanning Portal
+            {/* SIDEBAR NAVIGATION */}
+            <div className="dashboard-sidebar">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', padding: '0 0.5rem' }}>
+                <div style={{ background: '#1cb0f6', padding: '0.4rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BrainCircuit size={20} color="#fff" />
+                </div>
+                <span style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text)' }}>Navigation</span>
+              </div>
+
+              <button 
+                className={`sidebar-nav-btn ${activeDashboardTab === 'overview' ? 'active' : ''}`}
+                onClick={() => setActiveDashboardTab('overview')}
+              >
+                <Trophy size={18} /> Overview
+              </button>
+
+              {user.role === 'student' ? (
+                <>
+                  <button 
+                    className={`sidebar-nav-btn ${activeDashboardTab === 'quizzes' ? 'active' : ''}`}
+                    onClick={() => setActiveDashboardTab('quizzes')}
+                  >
+                    <Play size={18} /> Practice Tests
                   </button>
-                </div>
+                  <button 
+                    className={`sidebar-nav-btn ${activeDashboardTab === 'history' ? 'active' : ''}`}
+                    onClick={() => setActiveDashboardTab('history')}
+                  >
+                    <CheckCircle size={18} /> Attempts History
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    className={`sidebar-nav-btn ${activeDashboardTab === 'quizzes' ? 'active' : ''}`}
+                    onClick={() => setActiveDashboardTab('quizzes')}
+                  >
+                    <Upload size={18} /> Uploaded Quizzes
+                  </button>
+                </>
+              )}
 
-                <h3 style={{ marginTop: '2rem' }}>My Uploaded Quizzes</h3>
-                {dashboardData.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3rem', border: '2px dashed var(--border)', borderRadius: '20px' }}>
-                    <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>You haven't uploaded any quizzes yet.</p>
-                  </div>
-                ) : (
-                  <div className="dashboard-grid">
-                    {dashboardData.map((q, idx) => (
-                      <div key={idx} className="glass-card">
-                        <div className="glass-card-header">{q.title || "Untitled Quiz"}</div>
-                        <div className="glass-card-body">
-                          <div>Questions: {q.questions?.length || 0}</div>
-                          <div>Uploaded: {new Date(q.created_at).toLocaleDateString()}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <button 
+                className={`sidebar-nav-btn ${activeDashboardTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveDashboardTab('profile')}
+              >
+                <User size={18} /> Profile & Role
+              </button>
+
+              <div style={{ marginTop: 'auto', borderTop: '2px solid var(--border)', paddingTop: '1rem' }}>
+                <button className="sidebar-nav-btn" onClick={handleLogout} style={{ color: 'var(--playful-red)' }}>
+                  <LogOut size={18} /> Sign Out
+                </button>
               </div>
-            ) : (
-              <div>
-                <div className="dashboard-header-flex">
-                  <div>
-                    <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '0 0 5px 0' }}>Welcome back, {user.name}!</h2>
-                    <p style={{ color: 'var(--text-muted)', fontWeight: '700', margin: 0 }}>
-                      Ready to level up your skills today?
-                    </p>
+            </div>
+
+            {/* MAIN CONTENT PANEL */}
+            <div className="dashboard-main-content">
+              {activeDashboardTab === 'overview' && (
+                <>
+                  {/* Welcome banner */}
+                  <div className="welcome-banner">
+                    <h2>Welcome back, {user.name}!</h2>
+                    <p>{user.role === 'admin' ? "Admin Portal — Upload and scan quizzes, manage keys & domains." : "Ready to practice and level up your skills today?"}</p>
+                  </div>
+
+                  {/* Metrics grid */}
+                  {user.role === 'student' ? (
+                    <div className="metrics-grid">
+                      <div className="metric-card">
+                        <div className="metric-icon-wrapper" style={{ background: 'rgba(28, 176, 246, 0.1)', color: 'var(--playful-blue)' }}>
+                          <Play size={24} />
+                        </div>
+                        <div className="metric-info">
+                          <span className="metric-value">{dashboardData.length}</span>
+                          <span className="metric-label">Quizzes Played</span>
+                        </div>
+                      </div>
+
+                      <div className="metric-card">
+                        <div className="metric-icon-wrapper" style={{ background: 'rgba(88, 204, 2, 0.1)', color: 'var(--playful-green-border)' }}>
+                          <Trophy size={24} />
+                        </div>
+                        <div className="metric-info">
+                          <span className="metric-value">
+                            {dashboardData.length > 0 
+                              ? Math.round(dashboardData.reduce((acc, curr) => acc + curr.percentage, 0) / dashboardData.length) 
+                              : 0}%
+                          </span>
+                          <span className="metric-label">Avg Accuracy</span>
+                        </div>
+                      </div>
+
+                      <div className="metric-card">
+                        <div className="metric-icon-wrapper" style={{ background: 'rgba(255, 150, 0, 0.1)', color: 'var(--playful-orange-border)' }}>
+                          <CheckCircle size={24} />
+                        </div>
+                        <div className="metric-info">
+                          <span className="metric-value">
+                            {dashboardData.length > 0 ? Math.max(...dashboardData.map(d => d.percentage)) : 0}%
+                          </span>
+                          <span className="metric-label">Peak Score</span>
+                        </div>
+                      </div>
+
+                      <div className="metric-card">
+                        <div className="metric-icon-wrapper" style={{ background: 'rgba(120, 100, 255, 0.1)', color: '#7864ff' }}>
+                          <BrainCircuit size={24} />
+                        </div>
+                        <div className="metric-info">
+                          <span className="metric-value">{quizzesList.length}</span>
+                          <span className="metric-label">Available Tests</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="metrics-grid">
+                      <div className="metric-card">
+                        <div className="metric-icon-wrapper" style={{ background: 'rgba(28, 176, 246, 0.1)', color: 'var(--playful-blue)' }}>
+                          <Upload size={24} />
+                        </div>
+                        <div className="metric-info">
+                          <span className="metric-value">{dashboardData.length}</span>
+                          <span className="metric-label">Uploaded Quizzes</span>
+                        </div>
+                      </div>
+
+                      <div className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setView('admin')}>
+                        <div className="metric-icon-wrapper" style={{ background: 'rgba(88, 204, 2, 0.1)', color: 'var(--playful-green-border)' }}>
+                          <BrainCircuit size={24} />
+                        </div>
+                        <div className="metric-info">
+                          <span className="metric-value">SCAN</span>
+                          <span className="metric-label">AI Scanning Portal</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick-start sections */}
+                  {user.role === 'student' ? (
+                    <div className="glass-card" style={{ padding: '2rem' }}>
+                      <h3 style={{ margin: '0 0 10px 0', fontWeight: '800' }}>🚀 Quick Start</h3>
+                      <p style={{ color: 'var(--text-muted)', margin: '0 0 20px 0', fontSize: '0.95rem' }}>
+                        Jump directly into the latest uploaded practice test or view available tests to start playing.
+                      </p>
+                      <button 
+                        className="duo-btn duo-btn-green"
+                        style={{ width: 'auto', padding: '0.8rem 1.5rem' }}
+                        onClick={() => {
+                          if (quizzesList.length > 0) {
+                            startQuiz(quizzesList[0]);
+                          } else {
+                            alert("No practice tests available right now.");
+                          }
+                        }}
+                      >
+                        Start Latest Practice Test
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="glass-card" style={{ padding: '2rem' }}>
+                      <h3 style={{ margin: '0 0 10px 0', fontWeight: '800' }}>⚙️ Quiz Operations</h3>
+                      <p style={{ color: 'var(--text-muted)', margin: '0 0 20px 0', fontSize: '0.95rem' }}>
+                        Need to generate questions? Upload DOCX, DOC, or PDF files to scan them with Gemini AI.
+                      </p>
+                      <button 
+                        className="duo-btn duo-btn-blue"
+                        style={{ width: 'auto', padding: '0.8rem 1.5rem' }}
+                        onClick={() => setView('admin')}
+                      >
+                        Launch Scanning Portal
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeDashboardTab === 'quizzes' && (
+                <div>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: '800', margin: '0 0 10px 0' }}>
+                    {user.role === 'admin' ? "My Uploaded Quizzes" : "Available Practice Tests"}
+                  </h2>
+                  <p style={{ color: 'var(--text-muted)', margin: '0 0 1.5rem 0' }}>
+                    {user.role === 'admin' ? "All quizzes generated or published by you." : "Test your knowledge and level up your skills."}
+                  </p>
+
+                  {user.role === 'admin' ? (
+                    dashboardData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '3rem', border: '2px dashed var(--border)', borderRadius: '20px' }}>
+                        <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>You haven't uploaded any quizzes yet.</p>
+                      </div>
+                    ) : (
+                      <div className="dashboard-grid">
+                        {dashboardData.map((q, idx) => (
+                          <div key={idx} className="glass-card">
+                            <div className="glass-card-header">{q.title || "Untitled Quiz"}</div>
+                            <div className="glass-card-body">
+                              <div>Questions: {q.questions?.length || 0}</div>
+                              <div>Uploaded: {new Date(q.created_at).toLocaleDateString()}</div>
+                              <div style={{ fontSize: '0.8rem', marginTop: '10px' }}>Engine: {q.analysis_type || "AI"}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    quizzesList.length === 0 ? (
+                      <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>No tests available right now.</p>
+                    ) : (
+                      <div className="dashboard-grid">
+                        {quizzesList.map((quiz, idx) => (
+                          <div key={idx} className="glass-card">
+                            <div className="glass-card-header">{quiz.title || "Untitled Test"}</div>
+                            <div className="glass-card-body">
+                              <div>Questions: {quiz.questions?.length || 0}</div>
+                              <div>By: {quiz.faculty_email || "Admin"}</div>
+                            </div>
+                            <button 
+                              className="duo-btn duo-btn-green" 
+                              onClick={() => startQuiz(quiz)}
+                              style={{ marginTop: 'auto', padding: '0.6rem' }}
+                            >
+                              <Play size={18} fill="#fff" /> Play
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
+              {activeDashboardTab === 'history' && user.role === 'student' && (
+                <div>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: '800', margin: '0 0 10px 0' }}>Past Quiz Attempts</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: '0 0 1.5rem 0' }}>A log of your attempts, accuracy, and scores.</p>
+                  
+                  {dashboardData.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '3rem', border: '2px dashed var(--border)', borderRadius: '20px' }}>
+                      <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>You haven't attempted any quizzes yet.</p>
+                    </div>
+                  ) : (
+                    <div className="history-table-container">
+                      <table className="history-table">
+                        <thead>
+                          <tr>
+                            <th>Quiz Name</th>
+                            <th>Score</th>
+                            <th>Accuracy</th>
+                            <th>Date Attempted</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dashboardData.map((attempt, idx) => (
+                            <tr key={idx}>
+                              <td style={{ fontWeight: '800' }}>{attempt.quiz_title}</td>
+                              <td>{attempt.score} / {attempt.total}</td>
+                              <td>
+                                <span style={{ 
+                                  color: attempt.percentage >= 80 ? 'var(--playful-green-border)' : attempt.percentage >= 50 ? 'var(--playful-orange-border)' : 'var(--playful-red)',
+                                  fontWeight: '800'
+                                }}>
+                                  {attempt.percentage}%
+                                </span>
+                              </td>
+                              <td style={{ color: 'var(--text-muted)' }}>{new Date(attempt.timestamp).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeDashboardTab === 'profile' && (
+                <div className="profile-card">
+                  <div className="profile-header">
+                    <div className="profile-avatar">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div className="profile-meta">
+                      <h3 className="profile-name">{user.name || "User"}</h3>
+                      <span className={`profile-role-badge ${user.role}`} style={{
+                        background: user.role === 'admin' ? 'rgba(28,176,246,0.1)' : 'rgba(88,204,2,0.1)',
+                        color: user.role === 'admin' ? 'var(--playful-blue-border)' : 'var(--playful-green-border)',
+                        border: user.role === 'admin' ? '1px solid rgba(28,176,246,0.2)' : '1px solid rgba(88,204,2,0.2)'
+                      }}>
+                        {user.role}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="profile-details-grid">
+                    <div className="profile-detail-item">
+                      <span className="profile-detail-label">Email ID</span>
+                      <span className="profile-detail-value">{user.email}</span>
+                    </div>
+
+                    <div className="profile-detail-item">
+                      <span className="profile-detail-label">Domain Scope</span>
+                      <span className="profile-detail-value">{user.domain_id || "default"}</span>
+                    </div>
+
+                    <div className="profile-detail-item">
+                      <span className="profile-detail-label">Role Category</span>
+                      <span className="profile-detail-value">{user.role === 'admin' ? 'System administrator / Faculty' : 'Registered Student'}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '2px solid var(--border)', paddingTop: '1.5rem' }}>
+                    <span className="profile-detail-label">Your Permissions</span>
+                    <div className="permission-badges">
+                      {user.role === 'admin' ? (
+                        <>
+                          <span className="permission-badge">upload_quizzes</span>
+                          <span className="permission-badge">save_quizzes</span>
+                          <span className="permission-badge">manage_api_keys</span>
+                          <span className="permission-badge">manage_domains</span>
+                          <span className="permission-badge">view_all_attempts</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="permission-badge">view_quizzes</span>
+                          <span className="permission-badge">take_quizzes</span>
+                          <span className="permission-badge">view_own_attempts</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                {/* Dashboard Stats */}
-                <h3 style={{ marginTop: '2rem' }}>My Dashboard & Past Attempts</h3>
-                {dashboardData.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '2rem', border: '2px dashed var(--border)', borderRadius: '20px', marginBottom: '2rem' }}>
-                    <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>You haven't attempted any quizzes yet.</p>
-                  </div>
-                ) : (
-                  <div className="dashboard-grid" style={{ marginBottom: '2rem' }}>
-                    {dashboardData.slice(0, 6).map((attempt, idx) => (
-                      <div key={idx} className="glass-card" style={{ textAlign: 'center' }}>
-                        <div className="glass-card-header">{attempt.quiz_title}</div>
-                        <div className="score-ring-container" style={{ '--percentage': attempt.percentage }}>
-                          <div className="score-ring-inner">{attempt.percentage}%</div>
-                        </div>
-                        <div className="glass-card-body">
-                          Score: {attempt.score} / {attempt.total} <br/>
-                          <span style={{ fontSize: '0.8rem' }}>{new Date(attempt.timestamp).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Available Quizzes */}
-                <h3 style={{ marginTop: '2rem', borderTop: '2px solid var(--border)', paddingTop: '2rem' }}>Available Practice Tests</h3>
-                {quizzesList.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>No tests available right now.</p>
-                ) : (
-                  <div className="dashboard-grid">
-                    {quizzesList.map((quiz, idx) => (
-                      <div key={idx} className="glass-card">
-                        <div className="glass-card-header">{quiz.title || "Untitled Test"}</div>
-                        <div className="glass-card-body">
-                          <div>Questions: {quiz.questions?.length || 0}</div>
-                          <div>By: {quiz.faculty_email || "Admin"}</div>
-                        </div>
-                        <button 
-                          className="duo-btn duo-btn-green" 
-                          onClick={() => startQuiz(quiz)}
-                          style={{ marginTop: 'auto', padding: '0.6rem' }}
-                        >
-                          <Play size={18} fill="#fff" /> Play
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -1135,11 +1477,28 @@ function App() {
             <div className="options-grid">
               {quizData.questions[currentQuestionIdx].options.map((opt, i) => {
                 const charCode = String.fromCharCode(65 + i);
+                const isSelected = userAnswers[currentQuestionIdx] === opt;
+                const isCorrectAnswer = opt === quizData.questions[currentQuestionIdx].answer;
+                const hasAnswered = userAnswers[currentQuestionIdx] !== undefined;
+
+                let optionClass = "option-card";
+                if (hasAnswered) {
+                  if (isSelected) {
+                    optionClass += isCorrectAnswer ? " correct" : " wrong";
+                  } else if (isCorrectAnswer) {
+                    optionClass += " correct";
+                  }
+                }
+
                 return (
                   <button 
                     key={i} 
-                    className={`option-card ${userAnswers[currentQuestionIdx] === opt ? 'selected' : ''}`}
-                    onClick={() => selectOption(opt)}
+                    className={optionClass}
+                    onClick={() => {
+                      if (!hasAnswered) {
+                        selectOption(opt);
+                      }
+                    }}
                   >
                     <span className="option-badge">{charCode}</span>
                     <span>{opt}</span>
@@ -1172,7 +1531,7 @@ function App() {
                   onClick={nextQuestion}
                   style={{ flex: 2 }}
                 >
-                  Skip Question <ChevronRight size={20} />
+                  {userAnswers[currentQuestionIdx] !== undefined ? "Next Question" : "Skip Question"} <ChevronRight size={20} />
                 </button>
               )}
             </div>

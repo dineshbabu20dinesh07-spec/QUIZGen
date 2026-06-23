@@ -8,6 +8,14 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
+      // Auth routes
+      '/me': 'http://localhost:8000',
+      '/signin': 'http://localhost:8000',
+      '/signup': 'http://localhost:8000',
+      '/logout': 'http://localhost:8000',
+      '/health': 'http://localhost:8000',
+
+      // Quiz routes
       '/upload': 'http://localhost:8000',
       '/save-quiz': 'http://localhost:8000',
       '/quizzes': 'http://localhost:8000',
@@ -15,8 +23,12 @@ export default defineConfig({
       '/submit-attempt': 'http://localhost:8000',
       '/student-attempts': 'http://localhost:8000',
       '/faculty-quizzes': 'http://localhost:8000',
-      '/signup': 'http://localhost:8000',
-      '/signin': 'http://localhost:8000',
+
+      // Admin routes
+      '/admin': 'http://localhost:8000',
+
+      // External API v1
+      '/api': 'http://localhost:8000',
     }
   }
 })

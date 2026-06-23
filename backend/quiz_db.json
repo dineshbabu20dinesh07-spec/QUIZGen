@@ -212,7 +212,53 @@
       "_id": "quiz_1_1781149546"
     }
   ],
-  "users": [],
+  "users": [
+    {
+      "name": "Test User",
+      "email": "testuser99@gmail.com",
+      "password": "$2b$12$KVZoVKzDYUsPW6u7jmliEO2cNik/ollhiz9WFAg27oHRLpWM1rYcW",
+      "phone": "+91 9876543210",
+      "role": "student",
+      "domain_id": "default",
+      "created_at": "2026-06-23T06:00:11.014581"
+    },
+    {
+      "name": "Test User",
+      "email": "testuser1782@gmail.com",
+      "password": "$2b$12$.oJRGM46iGPxR5z9dcizhe3/UcLlH.eKo3bS2/A6R3imigtDapmPm",
+      "phone": "+91 9876543210",
+      "role": "student",
+      "domain_id": "default",
+      "created_at": "2026-06-23T06:39:09.820144"
+    },
+    {
+      "name": "dinesh",
+      "email": "dineshbabu20dinesh07@gmail.com",
+      "password": "$2b$12$XtsrhxmRQeAFViUlIj.sCeEbe1iPbAfJEjkN05krk4miPtIXIa1zO",
+      "phone": "+91   8072577721",
+      "role": "admin",
+      "domain_id": "default",
+      "created_at": "2026-06-23T08:29:07.224882"
+    },
+    {
+      "name": "Test User",
+      "email": "testuser3695@gmail.com",
+      "password": "$2b$12$DIf7/7PVTcjDG.NsR9Ex3eKt0u2zSuMrVjRXL/7bKb2sYKdTN7goa",
+      "phone": "+91 9876543210",
+      "role": "student",
+      "domain_id": "default",
+      "created_at": "2026-06-23T08:49:11.937496"
+    },
+    {
+      "name": "Dinesh Admin (OAuth)",
+      "email": "admin.test@gmail.com",
+      "password": "$2b$12$2yeoROjzv3HifNbu19i1s.EmJu1hnIHjXD7mcTW2ksPeVjd96CdWS",
+      "phone": "",
+      "role": "admin",
+      "domain_id": "default",
+      "created_at": "2026-06-23T15:16:37.240809"
+    }
+  ],
   "attempts": [],
   "current_quiz": {
     "filename": "EVS_20_MCQ_Questions.docx",
