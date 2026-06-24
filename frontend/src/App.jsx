@@ -362,8 +362,11 @@ function App() {
     } catch (err) {
       if (err.response?.status === 403) {
         alert("Access Denied: Only Faculty and Admin can upload quiz files.");
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        alert("Request timed out. The server may be waking up (Render free tier). Please wait 30 seconds and try again.");
       } else {
-        alert("Analysis failed. Try a smaller file or check API quota.");
+        const detail = err.response?.data?.detail || err.message || "Unknown error";
+        alert(`Analysis failed: ${detail}\n\nTip: Check that the server is running and GEMINI_API_KEY is set on Render.`);
       }
     } finally {
       setLoading(false);
