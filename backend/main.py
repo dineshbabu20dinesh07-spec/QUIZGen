@@ -198,41 +198,76 @@ class APIKeyCreate(BaseModel):
 # Gemini AI Analysis
 # ─────────────────────────────────────────────
 
+def extract_json_from_response(text):
+    """Robustly extract JSON array from Gemini response (handles markdown code blocks)"""
+    # Remove markdown code block wrappers
+    text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'```\s*', '', text)
+    text = text.strip()
+    # Try to find JSON array
+    json_match = re.search(r'\[.*\]', text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group())
+        except Exception:
+            pass
+    # Try to parse the whole text as JSON
+    try:
+        result = json.loads(text)
+        if isinstance(result, list):
+            return result
+    except Exception:
+        pass
+    return []
+
+
 def analyze_chunk_with_gemini(text_chunk):
     if not gemini_client:
         return []
-    prompt = f"""
-    Extract all MCQs from this text chunk. 
-    Identify the correct answer based on bold/underline formatting or context.
-    Return ONLY a JSON list of objects:
-    [
-      {{"question": "...", "options": ["...", "...", "...", "..."], "answer": "..."}}
-    ]
-    TEXT:
-    {text_chunk}
-    """
-    try:
-        response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
-        json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group())
-        return []
-    except Exception as e:
-        print(f"Chunk Analysis Error: {e}")
-        return []
+    prompt = f"""You are a quiz extraction assistant. Extract all multiple choice questions (MCQs) from the text below.
+
+For each question, identify:
+- The question text
+- All answer options (A, B, C, D)
+- The correct answer (look for bold, underlined, starred, or marked options. If answer key is given like 'Answer: C' use that.)
+
+Return ONLY a valid JSON array like this (no markdown, no explanation):
+[
+  {{"question": "What is X?", "options": ["A) opt1", "B) opt2", "C) opt3", "D) opt4"], "answer": "A) opt1"}}
+]
+
+If no MCQs found, return empty array: []
+
+TEXT TO ANALYZE:
+{text_chunk}"""
+    
+    # Try gemini-2.5-flash first, fallback to gemini-1.5-flash
+    for model in ['gemini-2.5-flash', 'gemini-1.5-flash']:
+        try:
+            response = gemini_client.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            result = extract_json_from_response(response.text)
+            if result:
+                print(f"Gemini ({model}) extracted {len(result)} questions")
+                return result
+        except Exception as e:
+            print(f"Gemini {model} error: {e}")
+            continue
+    return []
+
 
 def analyze_full_document(text):
-    chunk_size = 5000
+    chunk_size = 8000  # Larger chunks = fewer API calls
     chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
     all_questions = []
     print(f"Total Chunks to process: {len(chunks)}")
     for i, chunk in enumerate(chunks):
-        print(f"Processing chunk {i+1}...")
+        print(f"Processing chunk {i+1}/{len(chunks)}...")
         chunk_results = analyze_chunk_with_gemini(chunk)
         all_questions.extend(chunk_results)
+    print(f"Total questions extracted by Gemini: {len(all_questions)}")
     return all_questions
 
 # ─────────────────────────────────────────────

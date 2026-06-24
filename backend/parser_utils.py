@@ -19,11 +19,28 @@ def extract_text_from_pdf(file_bytes):
     return text
 
 def extract_text_from_docx(file_bytes):
-    """Extracts text from a Word .docx document."""
+    """Extracts text from a Word .docx document, preserving bold markers for answer detection."""
     doc = Document(io.BytesIO(file_bytes))
     full_text = []
     for para in doc.paragraphs:
-        full_text.append(para.text)
+        line = ""
+        for run in para.runs:
+            if run.bold:
+                # Mark bold text with ** so regex can detect correct answers
+                line += f"**{run.text}**"
+            else:
+                line += run.text
+        if line.strip():
+            full_text.append(line)
+    
+    # Also extract from tables (MCQs often in tables)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                cell_text = cell.text.strip()
+                if cell_text:
+                    full_text.append(cell_text)
+    
     return "\n".join(full_text)
 
 def extract_text_from_doc(file_bytes, filename):
@@ -47,7 +64,11 @@ def extract_text_from_doc(file_bytes, filename):
 
 def parse_quiz_content(text):
     """
-    Fallback parser using regex if AI fails.
+    Improved fallback parser using regex if AI fails.
+    Detects answers from:
+    - Bold markers (**Answer**)
+    - Answer key lines (Answer: C, Ans: B, Correct: A)
+    - Starred/marked options (*C) opt)
     """
     questions = []
     lines = text.split('\n')
@@ -55,19 +76,39 @@ def parse_quiz_content(text):
     
     for line in lines:
         line = line.strip()
-        if not line: continue
-            
-        # Question pattern (e.g. 1. What is...)
-        if re.match(r'^\d+[\.\)]', line):
+        if not line:
+            continue
+        
+        # Question pattern (e.g. "1. What is..." or "1) What is...")
+        if re.match(r'^\d+[\.\)]\s+\S', line):
             if current_q and len(current_q["options"]) >= 2:
                 questions.append(current_q)
-            current_q = {"question": line, "options": [], "answer": ""}
+            # Clean question text
+            q_text = re.sub(r'\*\*', '', line)  # Remove bold markers
+            current_q = {"question": q_text, "options": [], "answer": ""}
         
-        # Options pattern (e.g. A) Option)
-        elif re.match(r'^[A-Da-d][\.\)]', line) and current_q:
-            current_q["options"].append(line)
-            
+        # Options pattern (e.g. "A) Option" or "A. Option")
+        elif re.match(r'^[A-Da-d][\.\)]\s*', line) and current_q:
+            # Check if this option is marked as bold (correct answer)
+            is_bold = '**' in line
+            clean_option = re.sub(r'\*\*', '', line).strip()
+            current_q["options"].append(clean_option)
+            if is_bold and not current_q["answer"]:
+                current_q["answer"] = clean_option
+        
+        # Answer key line (e.g. "Answer: C" or "Ans: B" or "Correct Answer: A)")
+        elif re.match(r'^(Answer|Ans|Correct\s*Answer)\s*[:\-]?\s*[A-Da-d]', line, re.IGNORECASE) and current_q:
+            match = re.search(r'[A-Da-d][\.\)]?', line)
+            if match and current_q["options"]:
+                letter = match.group().rstrip('.)').upper()
+                # Find option matching this letter
+                for opt in current_q["options"]:
+                    if opt.upper().startswith(letter):
+                        current_q["answer"] = opt
+                        break
+    
+    # Add the last question
     if current_q and len(current_q["options"]) >= 2:
         questions.append(current_q)
-        
+    
     return questions
