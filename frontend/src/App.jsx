@@ -1260,10 +1260,10 @@ function App() {
                         className="duo-btn duo-btn-green"
                         style={{ width: 'auto', padding: '0.8rem 1.5rem' }}
                         onClick={() => {
-                          if (quizzesList.length > 0) {
-                            startQuiz(quizzesList[0]);
+                          if (quizData && quizData.questions && quizData.questions.length > 0) {
+                            startQuiz(quizData);
                           } else {
-                            alert("No practice tests available right now.");
+                            alert("No practice tests available right now. Ask your faculty to upload a quiz!");
                           }
                         }}
                       >
@@ -1317,26 +1317,26 @@ function App() {
                       </div>
                     )
                   ) : (
-                    quizzesList.length === 0 ? (
-                      <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>No tests available right now.</p>
-                    ) : (
+                    quizData && quizData.questions && quizData.questions.length > 0 ? (
                       <div className="dashboard-grid">
-                        {quizzesList.map((quiz, idx) => (
-                          <div key={idx} className="glass-card">
-                            <div className="glass-card-header">{quiz.title || "Untitled Test"}</div>
-                            <div className="glass-card-body">
-                              <div>Questions: {quiz.questions?.length || 0}</div>
-                              <div>By: {quiz.faculty_email || "Admin"}</div>
-                            </div>
-                            <button 
-                              className="duo-btn duo-btn-green" 
-                              onClick={() => startQuiz(quiz)}
-                              style={{ marginTop: 'auto', padding: '0.6rem' }}
-                            >
-                              <Play size={18} fill="#fff" /> Play
-                            </button>
+                        <div className="glass-card">
+                          <div className="glass-card-header">{quizData.title || quizData.filename || "Latest Practice Test"}</div>
+                          <div className="glass-card-body">
+                            <div>Questions: {quizData.questions?.length || 0}</div>
+                            <div>By: {quizData.faculty_email || "Admin"}</div>
                           </div>
-                        ))}
+                          <button 
+                            className="duo-btn duo-btn-green" 
+                            onClick={() => startQuiz(quizData)}
+                            style={{ marginTop: 'auto', padding: '0.6rem' }}
+                          >
+                            <Play size={18} fill="#fff" /> Play
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '3rem', border: '2px dashed var(--border)', borderRadius: '20px' }}>
+                        <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>No tests available right now. Ask your faculty to upload a quiz!</p>
                       </div>
                     )
                   )}
