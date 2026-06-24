@@ -624,11 +624,15 @@ async def get_faculty_quizzes(
 async def get_quiz(domain_id: str = Depends(get_domain_id)):
     """Get current quiz (no auth needed — students access this)."""
     if MONGO_AVAILABLE:
+        # 1. Try exact current_quiz for this domain
         quiz = quizzes_collection.find_one({"_id": "current_quiz", "domain_id": domain_id})
         if not quiz:
-            # Fallback: get latest quiz for domain
+            # 2. Try current_quiz any domain
+            quiz = quizzes_collection.find_one({"_id": "current_quiz"})
+        if not quiz:
+            # 3. Fallback: get the latest quiz saved (any domain)
             quiz = quizzes_collection.find_one(
-                {"domain_id": domain_id, "_id": {"$ne": "current_quiz"}},
+                {"_id": {"$ne": "current_quiz"}},
                 sort=[("created_at", -1)]
             )
         if quiz:
