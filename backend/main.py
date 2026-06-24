@@ -308,9 +308,9 @@ async def signin(request: Request, user: UserLogin):
             key="session",
             value=token,
             httponly=True,
-            samesite="lax",
+            samesite="none",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            secure=False,  # Set to True in production (HTTPS)
+            secure=True,  # Required for cross-domain (Vercel -> Render)
         )
         return res
 
@@ -362,9 +362,9 @@ async def signin(request: Request, user: UserLogin):
         key="session",
         value=token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=False,  # Set to True in production (HTTPS)
+        secure=True,  # Required for cross-domain (Vercel -> Render)
     )
     return res
 
@@ -429,9 +429,9 @@ async def signin_google(request: Request, user_data: GoogleLogin):
         key="session",
         value=token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=False,
+        secure=True,  # Required for cross-domain (Vercel -> Render)
     )
     return res
 
