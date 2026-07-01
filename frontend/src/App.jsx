@@ -218,18 +218,25 @@ function App() {
               if (tokenResponse && tokenResponse.access_token) {
                 setLoading(true);
                 try {
-                  // Fetch user details from Google UserInfo endpoint using the access token
-                  const res = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                  // Use fetch directly to get user info (more reliable than axios for cross-origin)
+                  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { 
+                      Authorization: `Bearer ${tokenResponse.access_token}`,
+                      'Accept': 'application/json'
+                    }
                   });
                   
-                  const payload = res.data;
-                  if (payload) {
+                  if (!res.ok) {
+                    throw new Error(`Google userinfo failed: ${res.status}`);
+                  }
+                  
+                  const payload = await res.json();
+                  if (payload && payload.email) {
                     const googleUser = {
                       name: payload.name || payload.given_name || payload.email.split('@')[0],
                       role: authPortalMode, 
                       email: payload.email,
-                      picture: payload.picture
+                      picture: payload.picture || ''
                     };
                     
                     const backendRes = await axios.post(`${API_URL}/signin-google`, googleUser, { withCredentials: true });
@@ -245,11 +252,29 @@ function App() {
                     fetchQuizzes();
                     fetchDashboardData(loggedUser);
                   } else {
-                    setAuthError('Unable to extract Google Account details.');
+                    setAuthError('Unable to extract Google Account details. Please try email/password login.');
                   }
                 } catch (err) {
                   console.error("Failed to fetch Google profile info:", err);
-                  setAuthError('Failed to retrieve user details from Google.');
+                  // Fallback: try to extract from token response directly
+                  if (tokenResponse.email) {
+                    try {
+                      const googleUser = {
+                        name: tokenResponse.name || tokenResponse.email.split('@')[0],
+                        role: authPortalMode,
+                        email: tokenResponse.email,
+                        picture: tokenResponse.picture || ''
+                      };
+                      const backendRes = await axios.post(`${API_URL}/signin-google`, googleUser, { withCredentials: true });
+                      setUser(backendRes.data.user);
+                      if (authPortalMode === 'admin') setView('admin');
+                      else setView('home');
+                      fetchQuizzes();
+                      fetchDashboardData(backendRes.data.user);
+                      return;
+                    } catch {}
+                  }
+                  setAuthError('Google Sign-In failed. Please use Email/Password login instead.');
                 } finally {
                   setLoading(false);
                 }
