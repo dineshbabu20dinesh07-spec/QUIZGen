@@ -1481,85 +1481,262 @@ function App() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
           >
-            <div className="quiz-top-info">
-              <button className="exit-btn" onClick={() => setView('home')}>
-                <ChevronLeft size={20} /> Quit Practice
+            {/* ── TOP BAR ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              marginBottom: '1.5rem'
+            }}>
+              <button
+                onClick={() => setView('home')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer',
+                  color: 'var(--text-muted)', fontWeight: '600', fontSize: '0.85rem',
+                  backdropFilter: 'blur(8px)', transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.13)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+              >
+                <ChevronLeft size={16} /> Quit
               </button>
-              <div style={{ fontWeight: '800', color: 'var(--text-muted)' }}>
-                Question {currentQuestionIdx + 1} of {quizData.questions.length}
+
+              <div style={{
+                background: 'linear-gradient(135deg,#6c63ff,#48b0f7)',
+                borderRadius: '50px', padding: '0.35rem 1.2rem',
+                fontSize: '0.82rem', fontWeight: '800', color: '#fff',
+                letterSpacing: '0.5px', boxShadow: '0 4px 14px rgba(108,99,255,0.35)'
+              }}>
+                {currentQuestionIdx + 1} / {quizData.questions.length}
+              </div>
+
+              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)' }}>
+                {quizData.title || quizData.filename || 'Practice Test'}
               </div>
             </div>
 
-            {/* Playful Progress Bar */}
-            <div className="duo-progress-bar">
-              <div 
-                className="duo-progress-fill" 
-                style={{ width: `${((currentQuestionIdx + 1) / quizData.questions.length) * 100}%` }}
-              ></div>
+            {/* ── PROGRESS BAR ── */}
+            <div style={{
+              height: '8px', background: 'rgba(255,255,255,0.08)',
+              borderRadius: '99px', overflow: 'hidden', marginBottom: '2rem',
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)'
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${((currentQuestionIdx + 1) / quizData.questions.length) * 100}%`,
+                background: 'linear-gradient(90deg,#6c63ff,#48b0f7)',
+                borderRadius: '99px',
+                transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)',
+                boxShadow: '0 0 12px rgba(108,99,255,0.5)'
+              }} />
             </div>
 
-            <div className="question-text">
-              {quizData.questions[currentQuestionIdx].question}
+            {/* ── QUESTION CARD ── */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(108,99,255,0.08) 0%, rgba(72,176,247,0.05) 100%)',
+              border: '1px solid rgba(108,99,255,0.2)',
+              borderRadius: '20px', padding: '1.8rem 2rem',
+              marginBottom: '1.5rem',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: '14px'
+              }}>
+                {/* Question number chip */}
+                <div style={{
+                  minWidth: '36px', height: '36px',
+                  background: 'linear-gradient(135deg,#6c63ff,#48b0f7)',
+                  borderRadius: '10px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontWeight: '900', fontSize: '0.85rem',
+                  color: '#fff', boxShadow: '0 4px 12px rgba(108,99,255,0.4)',
+                  flexShrink: 0, marginTop: '2px'
+                }}>
+                  Q{currentQuestionIdx + 1}
+                </div>
+                <p style={{
+                  margin: 0, fontSize: '1.05rem', fontWeight: '700',
+                  lineHeight: 1.65, color: 'var(--text)'
+                }}>
+                  {quizData.questions[currentQuestionIdx].question}
+                </p>
+              </div>
             </div>
 
-            <div className="options-grid">
+            {/* ── OPTIONS ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '1.5rem' }}>
               {quizData.questions[currentQuestionIdx].options.map((opt, i) => {
-                const charCode = String.fromCharCode(65 + i);
+                const letter = String.fromCharCode(65 + i);
                 const isSelected = userAnswers[currentQuestionIdx] === opt;
-                const isCorrectAnswer = opt === quizData.questions[currentQuestionIdx].answer;
+                const correctAnswer = quizData.questions[currentQuestionIdx].answer;
+                const isCorrect = opt === correctAnswer;
                 const hasAnswered = userAnswers[currentQuestionIdx] !== undefined;
+                const isWrongSelected = isSelected && !isCorrect;
 
-                let optionClass = "option-card";
+                // Determine styling state
+                let bg = 'rgba(255,255,255,0.04)';
+                let border = '1px solid rgba(255,255,255,0.1)';
+                let textColor = 'var(--text)';
+                let badgeBg = 'rgba(255,255,255,0.1)';
+                let badgeColor = 'var(--text-muted)';
+                let icon = null;
+                let shadow = 'none';
+
                 if (hasAnswered) {
-                  if (isSelected) {
-                    optionClass += isCorrectAnswer ? " correct" : " wrong";
-                  } else if (isCorrectAnswer) {
-                    optionClass += " correct";
+                  if (isWrongSelected) {
+                    // Red - wrong answer selected
+                    bg = 'rgba(239,68,68,0.12)';
+                    border = '2px solid rgba(239,68,68,0.6)';
+                    textColor = '#f87171';
+                    badgeBg = 'rgba(239,68,68,0.2)';
+                    badgeColor = '#f87171';
+                    shadow = '0 0 20px rgba(239,68,68,0.15)';
+                    icon = '✕';
+                  } else if (isCorrect) {
+                    // Green - correct answer
+                    bg = 'rgba(34,197,94,0.12)';
+                    border = '2px solid rgba(34,197,94,0.6)';
+                    textColor = '#4ade80';
+                    badgeBg = 'rgba(34,197,94,0.2)';
+                    badgeColor = '#4ade80';
+                    shadow = '0 0 20px rgba(34,197,94,0.15)';
+                    icon = '✓';
+                  } else {
+                    // Dimmed - other options
+                    bg = 'rgba(255,255,255,0.02)';
+                    textColor = 'rgba(var(--text-rgb, 30,30,30),0.4)';
+                    border = '1px solid rgba(255,255,255,0.05)';
                   }
+                } else if (isSelected) {
+                  bg = 'rgba(108,99,255,0.15)';
+                  border = '2px solid rgba(108,99,255,0.6)';
+                  textColor = '#a78bfa';
+                  badgeBg = 'rgba(108,99,255,0.3)';
+                  badgeColor = '#a78bfa';
+                  shadow = '0 0 20px rgba(108,99,255,0.15)';
                 }
 
                 return (
-                  <button 
-                    key={i} 
-                    className={optionClass}
-                    onClick={() => {
+                  <button
+                    key={i}
+                    onClick={() => { if (!hasAnswered) selectOption(opt); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '14px',
+                      padding: '1rem 1.2rem',
+                      background: bg, border, borderRadius: '14px',
+                      cursor: hasAnswered ? 'default' : 'pointer',
+                      transition: 'all 0.25s ease', textAlign: 'left',
+                      boxShadow: shadow, width: '100%',
+                      transform: hasAnswered ? 'scale(1)' : undefined
+                    }}
+                    onMouseEnter={e => {
                       if (!hasAnswered) {
-                        selectOption(opt);
+                        e.currentTarget.style.background = 'rgba(108,99,255,0.08)';
+                        e.currentTarget.style.border = '1px solid rgba(108,99,255,0.3)';
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!hasAnswered) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)';
+                        e.currentTarget.style.transform = 'translateX(0)';
                       }
                     }}
                   >
-                    <span className="option-badge">{charCode}</span>
-                    <span>{opt}</span>
+                    {/* Letter badge */}
+                    <div style={{
+                      minWidth: '32px', height: '32px',
+                      background: badgeBg, borderRadius: '8px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: '900', fontSize: '0.85rem', color: badgeColor,
+                      flexShrink: 0, transition: 'all 0.25s'
+                    }}>
+                      {icon ? icon : letter}
+                    </div>
+                    <span style={{
+                      fontSize: '0.95rem', fontWeight: '600',
+                      color: textColor, lineHeight: 1.4,
+                      transition: 'color 0.25s'
+                    }}>{opt}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="quiz-footer">
-              <button 
-                className="duo-btn duo-btn-white" 
-                disabled={currentQuestionIdx === 0} 
+            {/* ── FEEDBACK BANNER (wrong answer reveal) ── */}
+            {userAnswers[currentQuestionIdx] !== undefined &&
+             userAnswers[currentQuestionIdx] !== quizData.questions[currentQuestionIdx].answer && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: '12px',
+                background: 'rgba(34,197,94,0.08)',
+                border: '1px solid rgba(34,197,94,0.25)',
+                borderRadius: '14px', padding: '1rem 1.2rem',
+                marginBottom: '1.2rem',
+                animation: 'fadeIn 0.3s ease'
+              }}>
+                <div style={{
+                  minWidth: '28px', height: '28px', borderRadius: '50%',
+                  background: 'rgba(34,197,94,0.2)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1rem', flexShrink: 0
+                }}>💡</div>
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: '#4ade80', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correct Answer</div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: '600', color: 'var(--text)', lineHeight: 1.4 }}>
+                    {quizData.questions[currentQuestionIdx].answer || 'Answer not specified in this quiz'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── FOOTER BUTTONS ── */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                disabled={currentQuestionIdx === 0}
                 onClick={prevQuestion}
-                style={{ flex: 1 }}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: '6px', padding: '0.9rem',
+                  background: currentQuestionIdx === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '14px', cursor: currentQuestionIdx === 0 ? 'not-allowed' : 'pointer',
+                  color: currentQuestionIdx === 0 ? 'rgba(255,255,255,0.2)' : 'var(--text)',
+                  fontWeight: '700', fontSize: '0.9rem', transition: 'all 0.2s'
+                }}
               >
-                <ChevronLeft size={20} /> Back
+                <ChevronLeft size={18} /> Back
               </button>
 
               {currentQuestionIdx === quizData.questions.length - 1 ? (
-                <button 
-                  className="duo-btn duo-btn-green" 
+                <button
                   onClick={submitQuiz}
-                  style={{ flex: 2 }}
+                  style={{
+                    flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '8px', padding: '0.9rem',
+                    background: 'linear-gradient(135deg,#22c55e,#16a34a)',
+                    border: 'none', borderRadius: '14px', cursor: 'pointer',
+                    color: '#fff', fontWeight: '800', fontSize: '0.95rem',
+                    boxShadow: '0 6px 20px rgba(34,197,94,0.35)',
+                    transition: 'all 0.2s'
+                  }}
                 >
-                  <Send size={20} /> Finish & Submit
+                  <Send size={18} /> Finish & Submit
                 </button>
               ) : (
-                <button 
-                  className="duo-btn duo-btn-blue" 
+                <button
                   onClick={nextQuestion}
-                  style={{ flex: 2 }}
+                  style={{
+                    flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '8px', padding: '0.9rem',
+                    background: 'linear-gradient(135deg,#6c63ff,#48b0f7)',
+                    border: 'none', borderRadius: '14px', cursor: 'pointer',
+                    color: '#fff', fontWeight: '800', fontSize: '0.95rem',
+                    boxShadow: '0 6px 20px rgba(108,99,255,0.35)',
+                    transition: 'all 0.2s'
+                  }}
                 >
-                  {userAnswers[currentQuestionIdx] !== undefined ? "Next Question" : "Skip Question"} <ChevronRight size={20} />
+                  {userAnswers[currentQuestionIdx] !== undefined ? 'Next Question' : 'Skip'}
+                  <ChevronRight size={18} />
                 </button>
               )}
             </div>
@@ -1575,30 +1752,124 @@ function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="results-header">
-              <div className="trophy-container">
-                <span className="trophy-logo">🏆</span>
+            {/* Score Header */}
+            <div style={{
+              textAlign: 'center', marginBottom: '2rem'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '0.5rem' }}>
+                {Math.round((score.correct / score.total) * 100) >= 80 ? '🏆' :
+                 Math.round((score.correct / score.total) * 100) >= 50 ? '⭐' : '💪'}
               </div>
-              <h2>Lesson Complete!</h2>
-              <p style={{ color: 'var(--text-muted)', fontWeight: '800' }}>
-                You have finished your practice quiz. Here is your summary score!
+              <h2 style={{ margin: '0 0 8px', fontSize: '2rem', fontWeight: '900' }}>Quiz Complete!</h2>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: '600' }}>
+                {Math.round((score.correct / score.total) * 100) >= 80
+                  ? 'Outstanding performance! 🎉'
+                  : Math.round((score.correct / score.total) * 100) >= 50
+                  ? 'Good effort! Keep practicing 📚'
+                  : 'Keep going! Every attempt makes you better 💡'}
               </p>
             </div>
 
-            <div className="stats-grid">
-              <div className="stat-box correct">
-                <div className="stat-value">{score.correct}</div>
-                <div className="stat-label">Correct</div>
+            {/* Score Cards */}
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '2rem', justifyContent: 'center' }}>
+              <div style={{
+                flex: 1, maxWidth: '160px', padding: '1.5rem 1rem', textAlign: 'center',
+                background: 'rgba(34,197,94,0.1)', border: '2px solid rgba(34,197,94,0.3)',
+                borderRadius: '20px'
+              }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#4ade80' }}>{score.correct}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#4ade80', marginTop: '4px' }}>✓ Correct</div>
               </div>
-              <div className="stat-box wrong">
-                <div className="stat-value">{score.wrong}</div>
-                <div className="stat-label">Incorrect</div>
+              <div style={{
+                flex: 1, maxWidth: '160px', padding: '1.5rem 1rem', textAlign: 'center',
+                background: 'rgba(108,99,255,0.1)', border: '2px solid rgba(108,99,255,0.3)',
+                borderRadius: '20px'
+              }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#a78bfa' }}>
+                  {Math.round((score.correct / score.total) * 100)}%
+                </div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#a78bfa', marginTop: '4px' }}>Score</div>
+              </div>
+              <div style={{
+                flex: 1, maxWidth: '160px', padding: '1.5rem 1rem', textAlign: 'center',
+                background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.3)',
+                borderRadius: '20px'
+              }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#f87171' }}>{score.wrong}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f87171', marginTop: '4px' }}>✕ Wrong</div>
               </div>
             </div>
 
-            <button className="duo-btn duo-btn-green" onClick={() => setView('home')} style={{ maxWidth: '300px', margin: '0 auto' }}>
-              <RefreshCw size={20} /> Practice Again
-            </button>
+            {/* Answer Review */}
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontWeight: '800', marginBottom: '1rem', fontSize: '1rem' }}>📝 Answer Review</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
+                {quizData.questions.map((q, idx) => {
+                  const userAns = userAnswers[idx];
+                  const correct = q.answer;
+                  const isRight = userAns === correct;
+                  return (
+                    <div key={idx} style={{
+                      padding: '1rem 1.2rem',
+                      background: isRight ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                      border: `1px solid ${isRight ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                      borderRadius: '12px'
+                    }}>
+                      <div style={{ fontWeight: '700', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                        Q{idx + 1}. {q.question.length > 80 ? q.question.slice(0, 80) + '...' : q.question}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontSize: '0.78rem', fontWeight: '700', padding: '3px 10px',
+                          borderRadius: '99px',
+                          background: isRight ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                          color: isRight ? '#4ade80' : '#f87171'
+                        }}>
+                          {isRight ? '✓ ' : '✕ '} Your: {userAns || 'Skipped'}
+                        </span>
+                        {!isRight && correct && (
+                          <span style={{
+                            fontSize: '0.78rem', fontWeight: '700', padding: '3px 10px',
+                            borderRadius: '99px',
+                            background: 'rgba(34,197,94,0.15)', color: '#4ade80'
+                          }}>
+                            💡 Correct: {correct}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => startQuiz(quizData)}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: '8px', padding: '0.9rem',
+                  background: 'linear-gradient(135deg,#6c63ff,#48b0f7)',
+                  border: 'none', borderRadius: '14px', cursor: 'pointer',
+                  color: '#fff', fontWeight: '800', fontSize: '0.95rem',
+                  boxShadow: '0 6px 20px rgba(108,99,255,0.35)'
+                }}
+              >
+                <RefreshCw size={18} /> Retry Quiz
+              </button>
+              <button
+                onClick={() => setView('home')}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: '8px', padding: '0.9rem',
+                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '14px', cursor: 'pointer',
+                  color: 'var(--text)', fontWeight: '700', fontSize: '0.9rem'
+                }}
+              >
+                Dashboard
+              </button>
+            </div>
           </motion.div>
         )}
 
