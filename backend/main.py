@@ -412,18 +412,23 @@ async def signin_google(request: Request, user_data: GoogleLogin):
     # 1. Check if user exists, if not register them
     db_user = None
     if MONGO_AVAILABLE:
-        db_user = users_collection.find_one({"email": user_data.email, "role": user_data.role, "domain_id": domain_id})
+        db_user = users_collection.find_one({"email": user_data.email, "domain_id": domain_id})
     else:
         jdb = _load_json_db()
         matches = [
             u for u in jdb["users"]
             if u.get("email") == user_data.email 
-            and u.get("role") == user_data.role
             and u.get("domain_id", "default") == domain_id
         ]
         db_user = matches[0] if matches else None
         
-    if not db_user:
+    if db_user:
+        if db_user.get("role") != user_data.role:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Account exists but is registered as '{db_user.get('role')}', not '{user_data.role}'. Please switch to the correct portal."
+            )
+    else:
         # Auto register Google user
         new_user = {
             "name": user_data.name,

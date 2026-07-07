@@ -257,7 +257,14 @@ function App() {
                     setAuthError('Unable to extract Google Account details. Please try email/password login.');
                   }
                 } catch (err) {
-                  console.error("Failed to fetch Google profile info:", err);
+                  console.error("Failed to fetch Google profile info or backend login failed:", err);
+                  
+                  // If the backend actively rejected the login (e.g., role mismatch), show that error
+                  if (err.response && err.response.data && err.response.data.detail) {
+                    setAuthError(err.response.data.detail);
+                    return;
+                  }
+
                   // Fallback: try to extract from token response directly
                   if (tokenResponse.email) {
                     try {
@@ -274,7 +281,12 @@ function App() {
                       fetchQuizzes();
                       fetchDashboardData(backendRes.data.user);
                       return;
-                    } catch {}
+                    } catch (fallbackErr) {
+                      if (fallbackErr.response && fallbackErr.response.data && fallbackErr.response.data.detail) {
+                        setAuthError(fallbackErr.response.data.detail);
+                        return;
+                      }
+                    }
                   }
                   setAuthError('Google Sign-In failed. Please use Email/Password login instead.');
                 } finally {
