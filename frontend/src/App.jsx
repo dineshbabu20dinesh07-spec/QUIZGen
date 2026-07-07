@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Upload, Play, CheckCircle, RefreshCw, Settings, ChevronLeft, 
   ChevronRight, Trophy, BrainCircuit, Send, User, LogOut, Lock, 
-  ShieldAlert, Smartphone, ShieldCheck, Mail, Eye, EyeOff 
+  ShieldAlert, Smartphone, ShieldCheck, Mail, Eye, EyeOff, FileText, BarChart2, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -153,6 +153,9 @@ function App() {
   const [userAnswers, setUserAnswers] = useState({}); 
   const [score, setScore] = useState({ correct: 0, wrong: 0, total: 0 });
   const fileInputRef = useRef(null);
+  const profileInputRef = useRef(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showSidebarProfileMenu, setShowSidebarProfileMenu] = useState(false);
   
   // Dashboard states
   const [quizzesList, setQuizzesList] = useState([]);
@@ -208,8 +211,10 @@ function App() {
   useEffect(() => {
     if (user) return;
 
+    let initInterval;
+
     const initGoogleTokenClient = () => {
-      if (window.google) {
+      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
         try {
           const client = window.google.accounts.oauth2.initTokenClient({
             client_id: customClientId,
@@ -244,11 +249,8 @@ function App() {
                     
                     setUser(loggedUser);
                     
-                    if (authPortalMode === 'admin') {
-                      setView('admin');
-                    } else {
-                      setView('home');
-                    }
+                    setView('home');
+                    setActiveDashboardTab('overview');
                     fetchQuizzes();
                     fetchDashboardData(loggedUser);
                   } else {
@@ -267,8 +269,8 @@ function App() {
                       };
                       const backendRes = await axios.post(`${API_URL}/signin-google`, googleUser, { withCredentials: true });
                       setUser(backendRes.data.user);
-                      if (authPortalMode === 'admin') setView('admin');
-                      else setView('home');
+                      setView('home');
+                      setActiveDashboardTab('overview');
                       fetchQuizzes();
                       fetchDashboardData(backendRes.data.user);
                       return;
@@ -282,15 +284,24 @@ function App() {
             }
           });
           setTokenClient(client);
+          clearInterval(initInterval);
         } catch (e) {
           console.error("Google OAuth token client initialization failed: ", e);
+          clearInterval(initInterval);
         }
       }
     };
 
-    const timer = setTimeout(initGoogleTokenClient, 150);
-    return () => clearTimeout(timer);
-  }, [user, authPortalMode, customClientId]);
+    // Attempt immediately
+    initGoogleTokenClient();
+    
+    // If window.google is not ready yet, set an interval to check
+    if (!tokenClient) {
+      initInterval = setInterval(initGoogleTokenClient, 300);
+    }
+
+    return () => clearInterval(initInterval);
+  }, [user, authPortalMode, customClientId, tokenClient]);
 
   // Handler for custom Google Login button click
   const handleGoogleSignInClick = () => {
@@ -319,17 +330,25 @@ function App() {
       setUser(loggedUser);
       setShowBypassOverlay(false);
       
-      if (authPortalMode === 'admin') {
-        setView('admin');
-      } else {
-        setView('home');
-      }
+      setView('home');
+      setActiveDashboardTab('overview');
       fetchQuizzes();
       fetchDashboardData(loggedUser);
     } catch (err) {
       setAuthError(err.response?.data?.detail || 'Bypass sign in failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProfileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUser({ ...user, picture: reader.result });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -534,8 +553,8 @@ function App() {
         const matchingUser = res.data.user;
         setUser(matchingUser);
 
-        if (authPortalMode === 'admin') setView('admin');
-        else setView('home');
+        setView('home');
+        setActiveDashboardTab('overview');
 
         // Fetch data for the newly logged-in user
         fetchQuizzes();
@@ -595,55 +614,7 @@ function App() {
 
   return (
     <div className={`app-container ${!user ? 'login-mode' : ''}`}>
-      {/* HEADER SECTION - Only show if logged in to allow for split-screen login */}
-      {user && (
-        <header className="header">
-        <div className="logo-container">
-          <div className="logo-icon">
-            <BrainCircuit size={28} color="#fff" />
-          </div>
-          <span className="logo-text">QuizGen AI</span>
-          <span className="logo-badge">Portal</span>
-        </div>
-
-        <div className="user-profile-header">
-          {/* Settings gear is hidden from public view as requested */}
-          {user && user.role === 'admin' && (
-            <button 
-              className="duo-btn duo-btn-white" 
-              style={{ width: 'auto', padding: '0.4rem 0.6rem', borderRadius: '12px', boxShadow: 'none' }}
-              onClick={() => setShowConfig(!showConfig)}
-              title="Google OAuth Settings"
-            >
-              <Settings size={16} />
-            </button>
-          )}
-
-          {user && (
-            <div className="user-badge-wrapper" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              {user.picture ? (
-                <img 
-                  src={user.picture} 
-                  alt={user.name} 
-                  style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid var(--playful-blue)' }}
-                />
-              ) : null}
-              <div className={`user-badge ${user.role}`}>
-                {user.role === 'admin' ? <ShieldCheck size={16} /> : <User size={16} />}
-                <span>{user.name} ({user.role.toUpperCase()})</span>
-              </div>
-              <button 
-                className="duo-btn duo-btn-white" 
-                style={{ padding: '0.4rem 1rem', borderRadius: '12px', width: 'auto', boxShadow: 'none' }} 
-                onClick={handleLogout}
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-      )}
+      {/* HEADER SECTION - Removed for SaaS layout */ }
 
       {/* CLIENT ID CONFIGURATION DRAWER */}
       <AnimatePresence>
@@ -1130,19 +1101,108 @@ function App() {
         {user && view === 'home' && (
           <motion.div 
             key="home" 
-            className="dashboard-layout"
+            style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* SIDEBAR NAVIGATION */}
-            <div className="dashboard-sidebar">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', padding: '0 0.5rem' }}>
-                <div style={{ background: '#1cb0f6', padding: '0.4rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <BrainCircuit size={20} color="#fff" />
-                </div>
-                <span style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text)' }}>Navigation</span>
+            {/* GLOBAL BLUE TOP NAVBAR */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px', minHeight: '64px', padding: '0 2rem', background: '#1e88e5', color: '#fff', zIndex: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <BrainCircuit size={28} color="#fff" />
+                <span style={{ fontWeight: '800', fontSize: '1.4rem', letterSpacing: '0.5px' }}>QuizGen AI</span>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                   <Search size={16} color="#6b7280" style={{ position: 'absolute', left: '12px' }} />
+                   <input type="text" placeholder="Search..." style={{ padding: '0.5rem 1rem', paddingLeft: '36px', borderRadius: '20px', border: 'none', background: '#ffffff', color: '#111827', fontSize: '0.85rem', outline: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                  <Settings size={20} color="rgba(255,255,255,0.8)" style={{ cursor: 'pointer' }} />
+                  <div style={{ position: 'relative' }}>
+                    <div onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                      <input type="file" ref={profileInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleProfileUpload} />
+                      {user.picture ? (
+                        <img src={user.picture} alt={user.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.3)' }} />
+                      ) : (
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <User size={20} color="#fff" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {showProfileMenu && (
+                      <div style={{ position: 'absolute', top: '120%', right: 0, background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '0.5rem', zIndex: 100, minWidth: '150px' }}>
+                        <div 
+                          onClick={() => { setShowProfileMenu(false); profileInputRef.current?.click(); }} 
+                          style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem', color: '#374151', borderRadius: '4px' }}
+                          onMouseOver={(e) => e.target.style.background = '#f3f4f6'}
+                          onMouseOut={(e) => e.target.style.background = 'transparent'}
+                        >
+                          Change Profile
+                        </div>
+                        {user.picture && (
+                          <div 
+                            onClick={() => { setShowProfileMenu(false); setUser({ ...user, picture: '' }); }} 
+                            style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem', color: '#ef4444', borderRadius: '4px' }}
+                            onMouseOver={(e) => e.target.style.background = '#fee2e2'}
+                            onMouseOut={(e) => e.target.style.background = 'transparent'}
+                          >
+                            Remove Profile
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-layout" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              {/* SIDEBAR NAVIGATION */}
+              <div className="dashboard-sidebar">
+                {/* Profile Banner */}
+                <div style={{ position: 'relative', height: '140px', marginBottom: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: '1rem' }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '90px', background: 'url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=600&h=200) center/cover no-repeat' }}></div>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '90px', background: 'linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.4))' }}></div>
+                  <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div onClick={() => setShowSidebarProfileMenu(!showSidebarProfileMenu)} style={{ cursor: 'pointer', marginBottom: '5px' }}>
+                      {user.picture ? (
+                        <img src={user.picture} alt={user.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
+                      ) : (
+                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <User size={28} color="#6b7280" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {showSidebarProfileMenu && (
+                      <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px' }}>
+                        <div 
+                          onClick={() => { setShowSidebarProfileMenu(false); profileInputRef.current?.click(); }} 
+                          style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem', color: '#374151', borderRadius: '4px', textAlign: 'center' }}
+                          onMouseOver={(e) => e.target.style.background = '#f3f4f6'}
+                          onMouseOut={(e) => e.target.style.background = 'transparent'}
+                        >
+                          Change Profile
+                        </div>
+                        {user.picture && (
+                          <div 
+                            onClick={() => { setShowSidebarProfileMenu(false); setUser({ ...user, picture: '' }); }} 
+                            style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem', color: '#ef4444', borderRadius: '4px', textAlign: 'center' }}
+                            onMouseOver={(e) => e.target.style.background = '#fee2e2'}
+                            onMouseOut={(e) => e.target.style.background = 'transparent'}
+                          >
+                            Remove Profile
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ zIndex: 2, fontWeight: '700', color: '#111827', fontSize: '0.95rem' }}>{user.name}</div>
+                </div>
+
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#9ca3af', padding: '0 1.5rem', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>PERSONAL</div>
 
               <button 
                 className={`sidebar-nav-btn ${activeDashboardTab === 'overview' ? 'active' : ''}`}
@@ -1150,6 +1210,8 @@ function App() {
               >
                 <Trophy size={18} /> Overview
               </button>
+              
+              <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#9ca3af', padding: '0 1.5rem', marginTop: '1rem', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>APPS</div>
 
               {user.role === 'student' ? (
                 <>
@@ -1165,6 +1227,12 @@ function App() {
                   >
                     <CheckCircle size={18} /> Attempts History
                   </button>
+                  <button 
+                    className={`sidebar-nav-btn ${activeDashboardTab === 'progress' ? 'active' : ''}`}
+                    onClick={() => setActiveDashboardTab('progress')}
+                  >
+                    <BarChart2 size={18} /> Progress Graph
+                  </button>
                 </>
               ) : (
                 <>
@@ -1172,7 +1240,13 @@ function App() {
                     className={`sidebar-nav-btn ${activeDashboardTab === 'quizzes' ? 'active' : ''}`}
                     onClick={() => setActiveDashboardTab('quizzes')}
                   >
-                    <Upload size={18} /> Uploaded Quizzes
+                    <FileText size={18} /> Uploaded Quizzes
+                  </button>
+                  <button 
+                    className="sidebar-nav-btn"
+                    onClick={() => setView('admin')}
+                  >
+                    <Upload size={18} /> Upload New Quiz
                   </button>
                 </>
               )}
@@ -1184,132 +1258,139 @@ function App() {
                 <User size={18} /> Profile & Role
               </button>
 
-              <div style={{ marginTop: 'auto', borderTop: '2px solid var(--border)', paddingTop: '1rem' }}>
-                <button className="sidebar-nav-btn" onClick={handleLogout} style={{ color: 'var(--playful-red)' }}>
+              <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                <button className="sidebar-nav-btn" onClick={handleLogout} style={{ color: 'var(--danger)' }}>
                   <LogOut size={18} /> Sign Out
                 </button>
               </div>
             </div>
 
             {/* MAIN CONTENT PANEL */}
-            <div className="dashboard-main-content">
+            <div className="dashboard-main-content" style={{ backgroundColor: '#e5e7eb' }}>
               {activeDashboardTab === 'overview' && (
                 <>
-                  {/* Welcome banner */}
-                  <div className="welcome-banner">
-                    <h2>Welcome back, {user.name}!</h2>
-                    <p>{user.role === 'admin' ? "Admin Portal — Upload and scan quizzes, manage keys & domains." : "Ready to practice and level up your skills today?"}</p>
+                  {/* Page Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+                    <div>
+                      <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '0 0 5px 0', color: '#111827' }}>QuizGen AI Platform</h2>
+                      <p style={{ color: '#6b7280', margin: 0, fontSize: '0.9rem' }}>
+                        {user.role === 'admin' ? "Manage and scan quizzes, view analytics and projects." : "Ready to practice and level up your skills today?"}
+                      </p>
+                    </div>
+                    {user.role === 'admin' ? (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button style={{ background: '#111827', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => setView('admin')}>Scan Quiz</button>
+                        <button style={{ background: '#fff', color: '#111827', border: '1px solid #e5e7eb', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>Import Config</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button style={{ background: '#111827', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => setActiveDashboardTab('quizzes')}>Start Practice</button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Metrics grid */}
                   {user.role === 'student' ? (
                     <div className="metrics-grid">
                       <div className="metric-card">
-                        <div className="metric-icon-wrapper" style={{ background: 'rgba(28, 176, 246, 0.1)', color: 'var(--playful-blue)' }}>
-                          <Play size={24} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <FileText size={16} color="#6b7280" />
+                            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>+12.5%</span>
+                          </div>
                         </div>
-                        <div className="metric-info">
-                          <span className="metric-value">{dashboardData.length}</span>
-                          <span className="metric-label">Quizzes Played</span>
-                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginTop: '10px' }}>{dashboardData.length}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', lineHeight: 1.2, marginTop: '4px' }}>Total Quizzes<br/>Played</div>
                       </div>
 
                       <div className="metric-card">
-                        <div className="metric-icon-wrapper" style={{ background: 'rgba(88, 204, 2, 0.1)', color: 'var(--playful-green-border)' }}>
-                          <Trophy size={24} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Trophy size={16} color="#6b7280" />
+                            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>+23.1%</span>
+                          </div>
                         </div>
-                        <div className="metric-info">
-                          <span className="metric-value">
-                            {dashboardData.length > 0 
-                              ? Math.round(dashboardData.reduce((acc, curr) => acc + curr.percentage, 0) / dashboardData.length) 
-                              : 0}%
-                          </span>
-                          <span className="metric-label">Avg Accuracy</span>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginTop: '10px' }}>
+                          {dashboardData.length > 0 
+                            ? Math.round(dashboardData.reduce((acc, curr) => acc + curr.percentage, 0) / dashboardData.length) 
+                            : 0}%
                         </div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', lineHeight: 1.2, marginTop: '4px' }}>Avg Accuracy<br/>All time</div>
                       </div>
 
                       <div className="metric-card">
-                        <div className="metric-icon-wrapper" style={{ background: 'rgba(255, 150, 0, 0.1)', color: 'var(--playful-orange-border)' }}>
-                          <CheckCircle size={24} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <CheckCircle size={16} color="#6b7280" />
+                            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>+8.2%</span>
+                          </div>
                         </div>
-                        <div className="metric-info">
-                          <span className="metric-value">
-                            {dashboardData.length > 0 ? Math.max(...dashboardData.map(d => d.percentage)) : 0}%
-                          </span>
-                          <span className="metric-label">Peak Score</span>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginTop: '10px' }}>
+                          {dashboardData.length > 0 ? Math.max(...dashboardData.map(d => d.percentage)) : 0}%
                         </div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', lineHeight: 1.2, marginTop: '4px' }}>Peak Score<br/>Best attempt</div>
                       </div>
 
                       <div className="metric-card">
-                        <div className="metric-icon-wrapper" style={{ background: 'rgba(120, 100, 255, 0.1)', color: '#7864ff' }}>
-                          <BrainCircuit size={24} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <BrainCircuit size={16} color="#6b7280" />
+                            <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600' }}>-2.1%</span>
+                          </div>
                         </div>
-                        <div className="metric-info">
-                          <span className="metric-value">{quizzesList.length}</span>
-                          <span className="metric-label">Available Tests</span>
-                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginTop: '10px' }}>{quizzesList.length}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', lineHeight: 1.2, marginTop: '4px' }}>Available Tests<br/>Active modules</div>
                       </div>
                     </div>
                   ) : (
                     <div className="metrics-grid">
                       <div className="metric-card">
-                        <div className="metric-icon-wrapper" style={{ background: 'rgba(28, 176, 246, 0.1)', color: 'var(--playful-blue)' }}>
-                          <Upload size={24} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Upload size={16} color="#6b7280" />
+                            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>+12.5%</span>
+                          </div>
                         </div>
-                        <div className="metric-info">
-                          <span className="metric-value">{dashboardData.length}</span>
-                          <span className="metric-label">Uploaded Quizzes</span>
-                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginTop: '10px' }}>{dashboardData.length}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', lineHeight: 1.2, marginTop: '4px' }}>Uploaded Quizzes<br/>Total available</div>
                       </div>
 
                       <div className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setView('admin')}>
-                        <div className="metric-icon-wrapper" style={{ background: 'rgba(88, 204, 2, 0.1)', color: 'var(--playful-green-border)' }}>
-                          <BrainCircuit size={24} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <BrainCircuit size={16} color="#6b7280" />
+                            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>+23.1%</span>
+                          </div>
                         </div>
-                        <div className="metric-info">
-                          <span className="metric-value">SCAN</span>
-                          <span className="metric-label">AI Scanning Portal</span>
-                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginTop: '10px' }}>SCAN</div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '500', lineHeight: 1.2, marginTop: '4px' }}>AI Portal<br/>Scan & Generate</div>
                       </div>
                     </div>
                   )}
 
-                  {/* Quick-start sections */}
-                  {user.role === 'student' ? (
-                    <div className="glass-card" style={{ padding: '2rem' }}>
-                      <h3 style={{ margin: '0 0 10px 0', fontWeight: '800' }}>🚀 Quick Start</h3>
-                      <p style={{ color: 'var(--text-muted)', margin: '0 0 20px 0', fontSize: '0.95rem' }}>
-                        Jump directly into the latest uploaded practice test or view available tests to start playing.
-                      </p>
-                      <button 
-                        className="duo-btn duo-btn-green"
-                        style={{ width: 'auto', padding: '0.8rem 1.5rem' }}
-                        onClick={() => {
-                          if (quizData && quizData.questions && quizData.questions.length > 0) {
-                            startQuiz(quizData);
-                          } else {
-                            alert("No practice tests available right now. Ask your faculty to upload a quiz!");
-                          }
-                        }}
-                      >
-                        Start Latest Practice Test
-                      </button>
+                  {/* Chart Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                    <div className="glass-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <div style={{ fontWeight: '700', color: '#111827' }}>Performance Analytics</div>
+                        <select style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #e5e7eb', fontSize: '0.8rem', background: '#f9fafb' }}>
+                          <option>Last 12 months</option>
+                        </select>
+                      </div>
+                      <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #e5e7eb', color: '#9ca3af', fontSize: '0.9rem' }}>
+                         [Line Chart Canvas]
+                      </div>
                     </div>
-                  ) : (
-                    <div className="glass-card" style={{ padding: '2rem' }}>
-                      <h3 style={{ margin: '0 0 10px 0', fontWeight: '800' }}>⚙️ Quiz Operations</h3>
-                      <p style={{ color: 'var(--text-muted)', margin: '0 0 20px 0', fontSize: '0.95rem' }}>
-                        Need to generate questions? Upload DOCX, DOC, or PDF files to scan them with Gemini AI.
-                      </p>
-                      <button 
-                        className="duo-btn duo-btn-blue"
-                        style={{ width: 'auto', padding: '0.8rem 1.5rem' }}
-                        onClick={() => setView('admin')}
-                      >
-                        Launch Scanning Portal
-                      </button>
+                    <div className="glass-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <div style={{ fontWeight: '700', color: '#111827' }}>Activity by Category</div>
+                        <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>This year</div>
+                      </div>
+                      <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #e5e7eb', color: '#9ca3af', fontSize: '0.9rem' }}>
+                         [Bar Chart Canvas]
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </>
               )}
 
@@ -1414,9 +1495,14 @@ function App() {
               {activeDashboardTab === 'profile' && (
                 <div className="profile-card">
                   <div className="profile-header">
-                    <div className="profile-avatar">
-                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
+                    <label className="profile-avatar" style={{ cursor: 'pointer', overflow: 'hidden', padding: 0 }}>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfileUpload} />
+                      {user.picture ? (
+                        <img src={user.picture} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        user.name ? user.name.charAt(0).toUpperCase() : 'U'
+                      )}
+                    </label>
                     <div className="profile-meta">
                       <h3 className="profile-name">{user.name || "User"}</h3>
                       <span className={`profile-role-badge ${user.role}`} style={{
@@ -1468,8 +1554,39 @@ function App() {
                   </div>
                 </div>
               )}
+              
+              {activeDashboardTab === 'progress' && user.role === 'student' && (
+                <div>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '0 0 5px 0', color: '#111827' }}>Your Progress</h2>
+                  <p style={{ color: '#6b7280', margin: '0 0 2rem 0', fontSize: '0.9rem' }}>
+                    Track your learning progress over time across different topics.
+                  </p>
+                  
+                  <div className="glass-card" style={{ padding: '2rem' }}>
+                    {dashboardData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '3rem 0', color: '#6b7280' }}>No progress data available yet. Start practicing!</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={400}>
+                        <BarChart data={dashboardData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                          <XAxis dataKey="quiz_title" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                            cursor={{ fill: 'rgba(0,188,212,0.1)' }}
+                          />
+                          <Bar dataKey="percentage" name="Score (%)" fill="#00bcd4" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </motion.div>
+            {/* End of dashboard-main-content */}
+          </div>
+          {/* End of dashboard-layout */}
+        </motion.div>
         )}
 
         {/* STUDENT QUIZ GAME PLAY VIEW */}
