@@ -11,6 +11,7 @@ export default defineConfig({
       // Auth routes
       '/me': 'http://localhost:8000',
       '/signin': 'http://localhost:8000',
+      '/signin-google': 'http://localhost:8000',
       '/signup': 'http://localhost:8000',
       '/logout': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
