@@ -44,6 +44,22 @@ from api_keys import (
 
 load_dotenv()
 
+# ─────────────────────────────────────────────
+# Environment Detection
+# ─────────────────────────────────────────────
+# In development (localhost), cookies must use samesite="lax" and secure=False
+# In production (Vercel→Render HTTPS), cookies need samesite="none" and secure=True
+IS_DEV = os.environ.get("ENVIRONMENT", "development").lower() == "development"
+
+def make_session_cookie_kwargs() -> dict:
+    """Return the correct cookie kwargs based on environment."""
+    if IS_DEV:
+        # Localhost HTTP — 'secure=True' would silently drop the cookie!
+        return {"samesite": "lax", "secure": False}
+    else:
+        # Production HTTPS cross-domain (Vercel → Render)
+        return {"samesite": "none", "secure": True}
+
 app = FastAPI(
     title="QUIZGen API",
     description="AI-powered quiz generation platform with multi-tenant support",
@@ -339,13 +355,13 @@ async def signin(request: Request, user: UserLogin):
             "name": user_data["name"],
         })
         res = JR(content={"message": "Login successful", "user": user_data})
+        cookie_kwargs = make_session_cookie_kwargs()
         res.set_cookie(
             key="session",
             value=token,
             httponly=True,
-            samesite="none",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            secure=True,  # Required for cross-domain (Vercel -> Render)
+            **cookie_kwargs
         )
         return res
 
@@ -392,14 +408,14 @@ async def signin(request: Request, user: UserLogin):
         "name": user_data["name"],
     })
 
+    cookie_kwargs = make_session_cookie_kwargs()
     res = JR(content={"message": "Login successful", "user": user_data})
     res.set_cookie(
         key="session",
         value=token,
         httponly=True,
-        samesite="none",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=True,  # Required for cross-domain (Vercel -> Render)
+        **cookie_kwargs
     )
     return res
 
@@ -425,7 +441,7 @@ async def signin_google(request: Request, user_data: GoogleLogin):
     if db_user:
         if db_user.get("role") != user_data.role:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=401,
                 detail=f"Account exists but is registered as '{db_user.get('role')}', not '{user_data.role}'. Please switch to the correct portal."
             )
     else:
@@ -464,14 +480,14 @@ async def signin_google(request: Request, user_data: GoogleLogin):
         "picture": user_data.picture
     }
     
+    cookie_kwargs = make_session_cookie_kwargs()
     res = JR(content={"message": "Google Login successful", "user": response_user})
     res.set_cookie(
         key="session",
         value=token,
         httponly=True,
-        samesite="none",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=True,  # Required for cross-domain (Vercel -> Render)
+        **cookie_kwargs
     )
     return res
 
@@ -479,8 +495,14 @@ async def signin_google(request: Request, user_data: GoogleLogin):
 @app.post("/logout")
 async def logout():
     from fastapi.responses import JSONResponse as JR
+    cookie_kwargs = make_session_cookie_kwargs()
     res = JR(content={"message": "Logged out successfully"})
-    res.delete_cookie("session")
+    # Must use same samesite/secure attrs as when setting, otherwise browser ignores deletion
+    res.delete_cookie(
+        key="session",
+        httponly=True,
+        **cookie_kwargs
+    )
     return res
 
 

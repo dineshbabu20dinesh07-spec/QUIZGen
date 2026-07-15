@@ -234,7 +234,7 @@
     {
       "name": "dinesh",
       "email": "dineshbabu20dinesh07@gmail.com",
-      "password": "$2b$12$XtsrhxmRQeAFViUlIj.sCeEbe1iPbAfJEjkN05krk4miPtIXIa1zO",
+      "password": "$2b$12$ZRicexRTd/VD17wsFHYpYeucfjSYsRh.bNPKVvepl6q26AOue8mNu",
       "phone": "+91   8072577721",
       "role": "admin",
       "domain_id": "default",
@@ -252,11 +252,29 @@
     {
       "name": "Dinesh Admin (OAuth)",
       "email": "admin.test@gmail.com",
-      "password": "$2b$12$2yeoROjzv3HifNbu19i1s.EmJu1hnIHjXD7mcTW2ksPeVjd96CdWS",
+      "password": "$2b$12$RKEdANEwSKQhfhaeJ6XQeOGfDK2mDECcftCDh7b/zocvESuimjGiy",
       "phone": "",
       "role": "admin",
       "domain_id": "default",
       "created_at": "2026-06-23T15:16:37.240809"
+    },
+    {
+      "name": "Test Student",
+      "email": "teststudent99@gmail.com",
+      "password": "$2b$12$LiFnGWgI1eIA5YiqEtsjwOw.mQPae0/ULYWs7uk7DdmTn2PiSCHPW",
+      "phone": "+91 9876543210",
+      "role": "student",
+      "domain_id": "default",
+      "created_at": "2026-07-01T04:46:16.295928"
+    },
+    {
+      "name": "Dineshbabu (OAuth)",
+      "email": "dineshbabu20dinesh07@gmail.com",
+      "password": "$2b$12$ZRicexRTd/VD17wsFHYpYeucfjSYsRh.bNPKVvepl6q26AOue8mNu",
+      "phone": "",
+      "role": "student",
+      "domain_id": "default",
+      "created_at": "2026-07-01T05:02:29.995808"
     }
   ],
   "attempts": [],
