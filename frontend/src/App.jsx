@@ -1665,8 +1665,8 @@ function App() {
             <div style={{
               background: 'linear-gradient(135deg, rgba(108,99,255,0.08) 0%, rgba(72,176,247,0.05) 100%)',
               border: '1px solid rgba(108,99,255,0.2)',
-              borderRadius: '20px', padding: '1.8rem 2rem',
-              marginBottom: '1.5rem',
+              borderRadius: '20px', padding: '1.2rem 1.5rem',
+              marginBottom: '1rem',
               boxShadow: '0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
             }}>
               <div style={{
@@ -1750,9 +1750,9 @@ function App() {
                     key={i}
                     onClick={() => { if (!hasAnswered) selectOption(opt); }}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '14px',
-                      padding: '1rem 1.2rem',
-                      background: bg, border, borderRadius: '14px',
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '0.8rem 1rem',
+                      background: bg, border, borderRadius: '12px',
                       cursor: hasAnswered ? 'default' : 'pointer',
                       transition: 'all 0.25s ease', textAlign: 'left',
                       boxShadow: shadow, width: '100%',
@@ -1797,11 +1797,11 @@ function App() {
             {userAnswers[currentQuestionIdx] !== undefined &&
              userAnswers[currentQuestionIdx] !== quizData.questions[currentQuestionIdx].answer && (
               <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: '12px',
+                display: 'flex', alignItems: 'flex-start', gap: '10px',
                 background: 'rgba(34,197,94,0.08)',
                 border: '1px solid rgba(34,197,94,0.25)',
-                borderRadius: '14px', padding: '1rem 1.2rem',
-                marginBottom: '1.2rem',
+                borderRadius: '12px', padding: '0.8rem 1rem',
+                marginBottom: '1rem',
                 animation: 'fadeIn 0.3s ease'
               }}>
                 <div style={{
@@ -1826,10 +1826,10 @@ function App() {
                 onClick={prevQuestion}
                 style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: '6px', padding: '0.9rem',
+                  gap: '6px', padding: '0.75rem',
                   background: currentQuestionIdx === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '14px', cursor: currentQuestionIdx === 0 ? 'not-allowed' : 'pointer',
+                  borderRadius: '12px', cursor: currentQuestionIdx === 0 ? 'not-allowed' : 'pointer',
                   color: currentQuestionIdx === 0 ? 'rgba(255,255,255,0.2)' : 'var(--text)',
                   fontWeight: '700', fontSize: '0.9rem', transition: 'all 0.2s'
                 }}
@@ -1842,9 +1842,9 @@ function App() {
                   onClick={submitQuiz}
                   style={{
                     flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: '8px', padding: '0.9rem',
+                    gap: '8px', padding: '0.75rem',
                     background: 'linear-gradient(135deg,#22c55e,#16a34a)',
-                    border: 'none', borderRadius: '14px', cursor: 'pointer',
+                    border: 'none', borderRadius: '12px', cursor: 'pointer',
                     color: '#fff', fontWeight: '800', fontSize: '0.95rem',
                     boxShadow: '0 6px 20px rgba(34,197,94,0.35)',
                     transition: 'all 0.2s'
@@ -1857,9 +1857,9 @@ function App() {
                   onClick={nextQuestion}
                   style={{
                     flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: '8px', padding: '0.9rem',
+                    gap: '8px', padding: '0.75rem',
                     background: 'linear-gradient(135deg,#6c63ff,#48b0f7)',
-                    border: 'none', borderRadius: '14px', cursor: 'pointer',
+                    border: 'none', borderRadius: '12px', cursor: 'pointer',
                     color: '#fff', fontWeight: '800', fontSize: '0.95rem',
                     boxShadow: '0 6px 20px rgba(108,99,255,0.35)',
                     transition: 'all 0.2s'
