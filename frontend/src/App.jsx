@@ -1697,8 +1697,16 @@ function App() {
               {quizData.questions[currentQuestionIdx].options.map((opt, i) => {
                 const letter = String.fromCharCode(65 + i);
                 const isSelected = userAnswers[currentQuestionIdx] === opt;
-                const correctAnswer = quizData.questions[currentQuestionIdx].answer;
-                const isCorrect = opt === correctAnswer;
+                const correctAnswer = quizData.questions[currentQuestionIdx].answer || '';
+                
+                // Robust matching for AI-generated text
+                const normalize = (str) => str.replace(/^[a-d][.)\]]\s*/i, '').trim().toLowerCase().replace(/\s+/g, ' ');
+                const normOpt = normalize(opt);
+                const normAns = normalize(correctAnswer);
+                const isCorrect = normOpt === normAns || 
+                                  (normAns.length > 4 && normOpt.includes(normAns)) || 
+                                  (normOpt.length > 4 && normAns.includes(normOpt));
+                
                 const hasAnswered = userAnswers[currentQuestionIdx] !== undefined;
                 const isWrongSelected = isSelected && !isCorrect;
 
