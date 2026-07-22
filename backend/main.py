@@ -245,7 +245,7 @@ def analyze_chunk_with_gemini(text_chunk):
 For each question, identify:
 - The question text
 - All answer options (A, B, C, D)
-- The correct answer (look for bold, underlined, starred, or marked options. If answer key is given like 'Answer: C' use that.)
+- The correct answer. First, look for bold, underlined, starred, or marked options in the text. If an answer key is given, use that. IF THE CORRECT ANSWER IS NOT EXPLICITLY MARKED IN THE TEXT, YOU MUST SOLVE THE QUESTION YOURSELF and provide the correct answer based on your knowledge.
 
 Return ONLY a valid JSON array like this (no markdown, no explanation):
 [
