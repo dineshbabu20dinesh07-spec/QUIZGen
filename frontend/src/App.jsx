@@ -150,6 +150,8 @@ function App() {
   const [quizData, setQuizData] = useState({ questions: [] });
   const [adminPreview, setAdminPreview] = useState(null);
   const [urlInput, setUrlInput] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [userAnswers, setUserAnswers] = useState({}); 
@@ -430,18 +432,41 @@ function App() {
     }
   };
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (file) setSelectedFile(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const processFile = async () => {
+    if (!selectedFile) return;
 
     setLoading(true);
     setAdminPreview(null);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', selectedFile);
 
     try {
       const res = await axios.post(`${API_URL}/upload`, formData, { withCredentials: true });
       setAdminPreview(res.data);
+      setSelectedFile(null); // Clear selected file after success
     } catch (err) {
       if (err.response?.status === 403) {
         alert("Access Denied: Only Faculty and Admin can upload quiz files.");
@@ -2057,28 +2082,91 @@ function App() {
               🔒 Admin Access Level Authorized. Scanning large PDFs or Docx files will load generated MCQs directly.
             </div>
 
-            <div className="file-dropzone" onClick={() => fileInputRef.current.click()}>
-              <Upload size={48} color="var(--playful-blue)" />
-              <p>Click to Upload Study Document</p>
-              <span>Supports PDF, DOCX, DOC files</span>
-              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
+            <div 
+              className={`file-dropzone ${isDragging ? 'dragging' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !selectedFile && fileInputRef.current.click()}
+              style={{
+                border: isDragging ? '2px dashed var(--playful-blue)' : '2px dashed rgba(0,0,0,0.1)',
+                backgroundColor: isDragging ? 'rgba(0,123,255,0.05)' : 'white',
+                padding: '3rem 2rem',
+                borderRadius: '20px',
+                textAlign: 'center',
+                transition: 'all 0.3s ease',
+                cursor: selectedFile ? 'default' : 'pointer',
+                position: 'relative'
+              }}
+            >
+              {!selectedFile ? (
+                <>
+                  <div style={{
+                    width: '80px', height: '80px', background: 'rgba(0,123,255,0.08)',
+                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem'
+                  }}>
+                    <Upload size={36} color="var(--playful-blue)" />
+                  </div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.5rem' }}>Drag & drop files or <span style={{ color: 'var(--playful-blue)', textDecoration: 'underline' }}>Browse</span></h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Supported formats: PDF, DOCX, DOC</p>
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
+                </>
+              ) : (
+                <div className="file-preview-card" style={{
+                  background: 'rgba(0,123,255,0.03)', border: '1px solid rgba(0,123,255,0.1)',
+                  padding: '1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', textAlign: 'left' }}>
+                    <div style={{ background: 'var(--playful-blue)', padding: '12px', borderRadius: '12px' }}>
+                      <FileText size={24} color="white" />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontWeight: '700', fontSize: '1.1rem' }}>{selectedFile.name}</h4>
+                      <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => setSelectedFile(null)} className="duo-btn duo-btn-white" style={{ padding: '8px 12px' }}>
+                      Cancel
+                    </button>
+                    <button onClick={processFile} className="duo-btn duo-btn-primary" style={{ padding: '8px 20px', display: 'flex', gap: '8px' }}>
+                      <BrainCircuit size={18} /> Scan File
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="url-upload-section" style={{ display: 'flex', gap: '10px', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className="url-divider" style={{ display: 'flex', alignItems: 'center', margin: '2rem 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.1)' }}></div>
+              <span style={{ padding: '0 15px', color: 'var(--text-muted)', fontWeight: '600', fontSize: '0.9rem' }}>OR IMPORT VIA URL</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.1)' }}></div>
+            </div>
+
+            <div className="url-upload-section" style={{ 
+              display: 'flex', gap: '10px', 
+              background: 'white', padding: '15px', borderRadius: '20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.05)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '0 15px', color: 'var(--text-muted)' }}>
+                <Search size={20} />
+              </div>
               <input 
                 type="url" 
-                placeholder="Or paste a Document / Webpage URL here..." 
+                placeholder="Paste Document or Webpage URL here..." 
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                style={{ flex: 1, padding: '10px 15px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.1)', outline: 'none', background: 'rgba(255,255,255,0.8)' }}
+                style={{ flex: 1, padding: '12px 0', border: 'none', outline: 'none', fontSize: '1rem', background: 'transparent' }}
               />
               <button 
                 onClick={handleUrlUpload} 
                 className="duo-btn duo-btn-primary" 
-                style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '12px' }}
                 disabled={loading}
               >
-                <Search size={18} /> Scan URL
+                Scan Link
               </button>
             </div>
 
