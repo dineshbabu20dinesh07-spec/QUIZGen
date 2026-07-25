@@ -149,6 +149,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState({ questions: [] });
   const [adminPreview, setAdminPreview] = useState(null);
+  const [urlInput, setUrlInput] = useState('');
   
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [userAnswers, setUserAnswers] = useState({}); 
@@ -349,6 +350,31 @@ function App() {
       fetchDashboardData(loggedUser);
     } catch (err) {
       setAuthError(err.response?.data?.detail || 'Bypass sign in failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUrlUpload = async () => {
+    if (!urlInput) return alert("Please enter a URL first.");
+    if (user?.role !== 'admin' && user?.role !== 'faculty') {
+      return alert("Access Denied: Only Faculty and Admin can generate quizzes from URLs.");
+    }
+
+    setLoading(true);
+    setAuthError('');
+    try {
+      const res = await axios.post(`${API_URL}/upload-url`, { url: urlInput }, { withCredentials: true });
+      if (res.data.questions && res.data.questions.length > 0) {
+        setAdminPreview(res.data);
+        alert(`Successfully extracted ${res.data.total_questions} questions via ${res.data.analysis_type}.`);
+        setUrlInput(''); // clear it
+      } else {
+        alert("Failed to extract any questions from the provided URL.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || "Failed to generate quiz from URL.");
     } finally {
       setLoading(false);
     }
@@ -2036,6 +2062,24 @@ function App() {
               <p>Click to Upload Study Document</p>
               <span>Supports PDF, DOCX, DOC files</span>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
+            </div>
+
+            <div className="url-upload-section" style={{ display: 'flex', gap: '10px', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+              <input 
+                type="url" 
+                placeholder="Or paste a Document / Webpage URL here..." 
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                style={{ flex: 1, padding: '10px 15px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.1)', outline: 'none', background: 'rgba(255,255,255,0.8)' }}
+              />
+              <button 
+                onClick={handleUrlUpload} 
+                className="duo-btn duo-btn-primary" 
+                style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                disabled={loading}
+              >
+                <Search size={18} /> Scan URL
+              </button>
             </div>
 
             {loading && (

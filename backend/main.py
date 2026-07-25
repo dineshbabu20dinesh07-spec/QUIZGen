@@ -3,10 +3,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from parser_utils import extract_text_from_pdf, extract_text_from_docx, extract_text_from_doc
+from parser_utils import extract_text_from_pdf, extract_text_from_docx, extract_text_from_doc, extract_text_from_url
 import os
 import json
 import re
+import requests
 from datetime import datetime, timedelta
 from google import genai
 from pydantic import BaseModel
@@ -209,6 +210,9 @@ class APIKeyCreate(BaseModel):
     owner_email: str
     owner_role: str
     label: str = ""
+
+class UrlUpload(BaseModel):
+    url: str
 
 # ─────────────────────────────────────────────
 # Gemini AI Analysis
@@ -564,6 +568,52 @@ async def upload_file(
         raise
     except Exception as e:
         print(f"Major Upload Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/upload-url")
+async def upload_url_endpoint(
+    payload: UrlUpload,
+    current_user: dict = Depends(require_role("faculty", "admin")),  # RBAC ✅
+):
+    url = payload.url
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+        
+    try:
+        content_type, content, text, filename = extract_text_from_url(url)
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Could not extract text from the provided URL")
+
+        analysis_type = "AI Chunked"
+        try:
+            questions = analyze_full_document(text)
+        except Exception as ai_err:
+            print(f"AI failed, using fallback regex: {ai_err}")
+            from parser_utils import parse_quiz_content
+            questions = parse_quiz_content(text)
+            analysis_type = "Fallback Regex"
+
+        if not questions:
+            print("AI returned 0 questions. Applying local fallback regex parser...")
+            from parser_utils import parse_quiz_content
+            questions = parse_quiz_content(text)
+            analysis_type = "Fallback Regex (AI Quota/Key Error)"
+
+        return {
+            "filename": filename,
+            "total_questions": len(questions),
+            "questions": questions,
+            "analysis_type": analysis_type
+        }
+    except requests.exceptions.RequestException as e:
+        print(f"URL Fetch Error: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Major Upload URL Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
