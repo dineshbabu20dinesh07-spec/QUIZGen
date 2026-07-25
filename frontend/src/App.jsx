@@ -2088,26 +2088,13 @@ function App() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => !selectedFile && fileInputRef.current.click()}
-              style={{
-                border: isDragging ? '2px dashed var(--playful-blue)' : '2px dashed rgba(0,0,0,0.1)',
-                backgroundColor: isDragging ? 'rgba(0,123,255,0.05)' : 'white',
-                padding: '3rem 2rem',
-                borderRadius: '20px',
-                textAlign: 'center',
-                transition: 'all 0.3s ease',
-                cursor: selectedFile ? 'default' : 'pointer',
-                position: 'relative'
-              }}
             >
               {!selectedFile ? (
                 <>
-                  <div style={{
-                    width: '80px', height: '80px', background: 'rgba(0,123,255,0.08)',
-                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem'
-                  }}>
-                    <Upload size={36} color="var(--playful-blue)" />
+                  <div className="icon-container">
+                    <Upload size={36} />
                   </div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.5rem' }}>Drag & drop files or <span style={{ color: 'var(--playful-blue)', textDecoration: 'underline' }}>Browse</span></h3>
+                  <h3>Drag & drop files or <span style={{ color: 'var(--playful-blue)', textDecoration: 'underline' }}>Browse</span></h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Supported formats: PDF, DOCX, DOC</p>
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
                 </>
@@ -2145,11 +2132,7 @@ function App() {
               <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.1)' }}></div>
             </div>
 
-            <div className="url-upload-section" style={{ 
-              display: 'flex', gap: '10px', 
-              background: 'white', padding: '15px', borderRadius: '20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.05)'
-            }}>
+            <div className="url-upload-section">
               <div style={{ display: 'flex', alignItems: 'center', padding: '0 15px', color: 'var(--text-muted)' }}>
                 <Search size={20} />
               </div>
@@ -2158,12 +2141,10 @@ function App() {
                 placeholder="Paste Document or Webpage URL here..." 
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                style={{ flex: 1, padding: '12px 0', border: 'none', outline: 'none', fontSize: '1rem', background: 'transparent' }}
               />
               <button 
                 onClick={handleUrlUpload} 
-                className="duo-btn duo-btn-primary" 
-                style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '12px' }}
+                className="scan-btn" 
                 disabled={loading}
               >
                 Scan Link
