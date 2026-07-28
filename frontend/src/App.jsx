@@ -11,13 +11,28 @@ import './App.css';
 // Force /api in production so Vercel can proxy requests to the backend (solves 3rd-party cookie blocks)
 const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '');
 
-// Render free tier la server sleep aguthu — app load agum pothu silently wake up pannurom
-// so that user upload panna pothu server already ready-a irukum
-const wakeUpRenderServer = () => {
-  const pingUrl = import.meta.env.MODE === 'production' ? '/ping' : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/ping` : '/ping');
-  fetch(pingUrl)
-    .then(() => console.log('[QuizGen] Server is awake ✓'))
-    .catch(() => console.log('[QuizGen] Server waking up... (this is normal)'));
+// Render free tier la server sleep aguthu.
+// This function polls /ping until the server responds or times out.
+// Returns a promise that resolves to true (awake) or false (timeout).
+const pingUntilAwake = async (maxWaitMs = 70000) => {
+  const pingUrl = import.meta.env.MODE === 'production'
+    ? '/ping'
+    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/ping` : 'http://localhost:8000/ping');
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const res = await fetch(pingUrl, { cache: 'no-store' });
+      if (res.ok) {
+        console.log('[QuizGen] Server is awake ✓');
+        return true;
+      }
+    } catch {
+      // Server still sleeping, keep retrying
+    }
+    await new Promise(resolve => setTimeout(resolve, 4000)); // retry every 4s
+  }
+  console.warn('[QuizGen] Server did not wake up in time.');
+  return false;
 };
 
 // USER'S GOOGLE CLIENT ID
@@ -178,6 +193,10 @@ function App() {
   // Session loading — prevents white screen while checking cookie
   const [sessionLoading, setSessionLoading] = useState(true);
 
+  // Server ready state — tracks if Render backend has woken up
+  // 'checking' | 'ready' | 'timeout'
+  const [serverStatus, setServerStatus] = useState('checking');
+
   // Pagination state
   const [quizzesPage, setQuizzesPage] = useState(1);
   const [quizPageInfo, setQuizPageInfo] = useState({ total: 0, total_pages: 1 });
@@ -221,10 +240,11 @@ function App() {
     restoreSession();
   }, []);
 
-  // Silently wake up Render backend immediately on app load
-  // This ensures the server is warm before the user clicks "Scan File"
+  // Wake up Render backend on app load and track readiness
   useEffect(() => {
-    wakeUpRenderServer();
+    pingUntilAwake(70000).then(isReady => {
+      setServerStatus(isReady ? 'ready' : 'timeout');
+    });
   }, []);
 
   // Initialize Google Token Client for programmatically launching Google Account picker
@@ -453,47 +473,38 @@ function App() {
 
     setLoading(true);
     setAdminPreview(null);
-    const formData = new FormData();
-    formData.append('file', selectedFile);
 
     try {
-      let res;
-      let attempt = 0;
-      const maxAttempts = 3;
-      
-      while (attempt < maxAttempts) {
-        try {
-          // Production la 120 seconds timeout — Gemini processing time edukkuthu
-          res = await axios.post(`${API_URL}/upload`, formData, {
-            withCredentials: true,
-            timeout: 120000, // 2 minutes — handles Gemini AI processing
-          });
-          break; // Success! Exit the loop.
-        } catch (err) {
-          attempt++;
-          const status = err.response?.status;
-          const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout') || status === 504 || status === 502;
-          
-          if (isTimeout && attempt < maxAttempts) {
-            console.log(`Upload attempt ${attempt} failed (likely Render cold start). Retrying in 3 seconds...`);
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          } else {
-            throw err; // Not a timeout or out of retries, throw to outer catch
-          }
+      // Step 1: Server ready illa na — wait for it (max 60 more seconds)
+      if (serverStatus !== 'ready') {
+        console.log('[QuizGen] Server not yet ready. Waiting for wake-up...');
+        const isNowReady = await pingUntilAwake(60000);
+        if (isNowReady) {
+          setServerStatus('ready');
+        } else {
+          // Still not awake — try upload anyway (maybe it just responded slowly)
+          console.warn('[QuizGen] Server ping timed out — attempting upload anyway.');
         }
       }
 
+      // Step 2: Now do the actual file upload
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const res = await axios.post(`${API_URL}/upload`, formData, {
+        withCredentials: true,
+        timeout: 120000, // 2 minutes — enough for Gemini AI analysis
+      });
+
       setAdminPreview(res.data);
-      // We no longer clear selectedFile here, so if they click "Discard", the file is still there.
-      // Or they can click "Cancel" to upload a new one.
     } catch (err) {
       if (err.response?.status === 403) {
         alert("Access Denied: Only Faculty and Admin can upload quiz files.");
       } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout') || err.response?.status === 504) {
-        alert("Request timed out after multiple attempts. The server is still waking up (Render free tier). Please wait 30 seconds and try again.");
+        alert("Upload timed out. The server is taking too long. Please try once more.");
       } else {
         const detail = err.response?.data?.detail || err.message || "Unknown error";
-        alert(`Analysis failed: ${detail}\n\nTip: Check that the server is running and GEMINI_API_KEY is set on Render.`);
+        alert(`Analysis failed: ${detail}`);
       }
     } finally {
       setLoading(false);
@@ -2152,10 +2163,20 @@ function App() {
             {loading && (
               <div style={{ textAlign: 'center', margin: '2rem 0', background: 'rgba(108,99,255,0.05)', padding: '2rem', borderRadius: '16px', border: '1px dashed rgba(108,99,255,0.2)' }}>
                 <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
-                <h3 style={{ color: 'var(--text)', margin: '0 0 8px 0' }}>Analyzing study document...</h3>
-                <p style={{ fontWeight: '600', color: 'var(--playful-blue)', margin: 0 }}>
-                  This AI process can take 15 - 60 seconds. Please do not refresh the page.
-                </p>
+                {serverStatus !== 'ready'
+                  ? (<>
+                      <h3 style={{ color: 'var(--text)', margin: '0 0 8px 0' }}>⚡ Warming up server...</h3>
+                      <p style={{ fontWeight: '600', color: '#f59e0b', margin: 0 }}>
+                        Server is starting up. Upload will begin automatically in a few seconds.
+                      </p>
+                    </>)
+                  : (<>
+                      <h3 style={{ color: 'var(--text)', margin: '0 0 8px 0' }}>🔍 Analyzing study document...</h3>
+                      <p style={{ fontWeight: '600', color: 'var(--playful-blue)', margin: 0 }}>
+                        AI is extracting quiz questions. Please wait, do not refresh.
+                      </p>
+                    </>)
+                }
               </div>
             )}
 
