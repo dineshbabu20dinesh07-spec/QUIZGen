@@ -5,6 +5,10 @@
       "destination": "https://quizgen-2.onrender.com/$1"
     },
     {
+      "source": "/ping",
+      "destination": "https://quizgen-2.onrender.com/ping"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

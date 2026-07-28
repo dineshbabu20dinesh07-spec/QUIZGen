@@ -11,6 +11,15 @@ import './App.css';
 // Force /api in production so Vercel can proxy requests to the backend (solves 3rd-party cookie blocks)
 const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '');
 
+// Render free tier la server sleep aguthu — app load agum pothu silently wake up pannurom
+// so that user upload panna pothu server already ready-a irukum
+const wakeUpRenderServer = () => {
+  const pingUrl = import.meta.env.MODE === 'production' ? '/ping' : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/ping` : '/ping');
+  fetch(pingUrl)
+    .then(() => console.log('[QuizGen] Server is awake ✓'))
+    .catch(() => console.log('[QuizGen] Server waking up... (this is normal)'));
+};
+
 // USER'S GOOGLE CLIENT ID
 const GOOGLE_CLIENT_ID = "653610501656-emigf3rjghphaki1kphg25gt74u8rvfa.apps.googleusercontent.com";
 
@@ -149,7 +158,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState({ questions: [] });
   const [adminPreview, setAdminPreview] = useState(null);
-  const [urlInput, setUrlInput] = useState('');
+
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   
@@ -180,7 +189,8 @@ function App() {
     const restoreSession = async () => {
       try {
         // Try cookie-based session (/me reads the HttpOnly session cookie)
-        const res = await axios.get(`${API_URL}/me`, { withCredentials: true });
+        // Set a timeout so if the Render server is sleeping, the login page shows up immediately.
+        const res = await axios.get(`${API_URL}/me`, { withCredentials: true, timeout: 3000 });
         const u = {
           name: res.data.name,
           email: res.data.email,
@@ -209,6 +219,12 @@ function App() {
       }
     };
     restoreSession();
+  }, []);
+
+  // Silently wake up Render backend immediately on app load
+  // This ensures the server is warm before the user clicks "Scan File"
+  useEffect(() => {
+    wakeUpRenderServer();
   }, []);
 
   // Initialize Google Token Client for programmatically launching Google Account picker
@@ -357,30 +373,7 @@ function App() {
     }
   };
 
-  const handleUrlUpload = async () => {
-    if (!urlInput) return alert("Please enter a URL first.");
-    if (user?.role !== 'admin' && user?.role !== 'faculty') {
-      return alert("Access Denied: Only Faculty and Admin can generate quizzes from URLs.");
-    }
 
-    setLoading(true);
-    setAuthError('');
-    try {
-      const res = await axios.post(`${API_URL}/upload-url`, { url: urlInput }, { withCredentials: true });
-      if (res.data.questions && res.data.questions.length > 0) {
-        setAdminPreview(res.data);
-        alert(`Successfully extracted ${res.data.total_questions} questions via ${res.data.analysis_type}.`);
-        setUrlInput(''); // clear it
-      } else {
-        alert("Failed to extract any questions from the provided URL.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.detail || "Failed to generate quiz from URL.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleProfileUpload = (e) => {
     const file = e.target.files[0];
@@ -464,14 +457,40 @@ function App() {
     formData.append('file', selectedFile);
 
     try {
-      const res = await axios.post(`${API_URL}/upload`, formData, { withCredentials: true });
+      let res;
+      let attempt = 0;
+      const maxAttempts = 3;
+      
+      while (attempt < maxAttempts) {
+        try {
+          // Production la 120 seconds timeout — Gemini processing time edukkuthu
+          res = await axios.post(`${API_URL}/upload`, formData, {
+            withCredentials: true,
+            timeout: 120000, // 2 minutes — handles Gemini AI processing
+          });
+          break; // Success! Exit the loop.
+        } catch (err) {
+          attempt++;
+          const status = err.response?.status;
+          const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout') || status === 504 || status === 502;
+          
+          if (isTimeout && attempt < maxAttempts) {
+            console.log(`Upload attempt ${attempt} failed (likely Render cold start). Retrying in 3 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          } else {
+            throw err; // Not a timeout or out of retries, throw to outer catch
+          }
+        }
+      }
+
       setAdminPreview(res.data);
-      setSelectedFile(null); // Clear selected file after success
+      // We no longer clear selectedFile here, so if they click "Discard", the file is still there.
+      // Or they can click "Cancel" to upload a new one.
     } catch (err) {
       if (err.response?.status === 403) {
         alert("Access Denied: Only Faculty and Admin can upload quiz files.");
-      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        alert("Request timed out. The server may be waking up (Render free tier). Please wait 30 seconds and try again.");
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout') || err.response?.status === 504) {
+        alert("Request timed out after multiple attempts. The server is still waking up (Render free tier). Please wait 30 seconds and try again.");
       } else {
         const detail = err.response?.data?.detail || err.message || "Unknown error";
         alert(`Analysis failed: ${detail}\n\nTip: Check that the server is running and GEMINI_API_KEY is set on Render.`);
@@ -2082,80 +2101,60 @@ function App() {
               🔒 Admin Access Level Authorized. Scanning large PDFs or Docx files will load generated MCQs directly.
             </div>
 
-            <div 
-              className={`file-dropzone ${isDragging ? 'dragging' : ''}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => !selectedFile && fileInputRef.current.click()}
-            >
-              {!selectedFile ? (
-                <>
-                  <div className="icon-container">
-                    <Upload size={36} />
-                  </div>
-                  <h3>Drag & drop files or <span style={{ color: 'var(--playful-blue)', textDecoration: 'underline' }}>Browse</span></h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Supported formats: PDF, DOCX, DOC</p>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
-                </>
-              ) : (
-                <div className="file-preview-card" style={{
-                  background: 'rgba(0,123,255,0.03)', border: '1px solid rgba(0,123,255,0.1)',
-                  padding: '1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', textAlign: 'left' }}>
-                    <div style={{ background: 'var(--playful-blue)', padding: '12px', borderRadius: '12px' }}>
-                      <FileText size={24} color="white" />
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontWeight: '700', fontSize: '1.1rem' }}>{selectedFile.name}</h4>
-                      <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => setSelectedFile(null)} className="duo-btn duo-btn-white" style={{ padding: '8px 12px' }}>
-                      Cancel
-                    </button>
-                    <button onClick={processFile} className="duo-btn duo-btn-primary" style={{ padding: '8px 20px', display: 'flex', gap: '8px' }}>
-                      <BrainCircuit size={18} /> Scan File
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="url-divider" style={{ display: 'flex', alignItems: 'center', margin: '2rem 0' }}>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.1)' }}></div>
-              <span style={{ padding: '0 15px', color: 'var(--text-muted)', fontWeight: '600', fontSize: '0.9rem' }}>OR IMPORT VIA URL</span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.1)' }}></div>
-            </div>
-
-            <div className="url-upload-section">
-              <div style={{ display: 'flex', alignItems: 'center', padding: '0 15px', color: 'var(--text-muted)' }}>
-                <Search size={20} />
-              </div>
-              <input 
-                type="url" 
-                placeholder="Paste Document or Webpage URL here..." 
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-              />
-              <button 
-                onClick={handleUrlUpload} 
-                className="scan-btn" 
-                disabled={loading}
+            {!adminPreview && (
+              <div 
+                className={`file-dropzone ${isDragging ? 'dragging' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => !selectedFile && fileInputRef.current.click()}
               >
-                Scan Link
-              </button>
-            </div>
+                {!selectedFile ? (
+                  <>
+                    <div className="icon-container">
+                      <Upload size={36} />
+                    </div>
+                    <h3>Drag & drop files or <span style={{ color: 'var(--playful-blue)', textDecoration: 'underline' }}>Browse</span></h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Supported formats: PDF, DOCX, DOC</p>
+                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.doc" hidden />
+                  </>
+                ) : (
+                  <div className="file-preview-card" style={{
+                    background: 'rgba(0,123,255,0.03)', border: '1px solid rgba(0,123,255,0.1)',
+                    padding: '1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', textAlign: 'left' }}>
+                      <div style={{ background: 'var(--playful-blue)', padding: '12px', borderRadius: '12px' }}>
+                        <FileText size={24} color="white" />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontWeight: '700', fontSize: '1.1rem' }}>{selectedFile.name}</h4>
+                        <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button onClick={() => setSelectedFile(null)} className="duo-btn duo-btn-white" style={{ padding: '8px 12px' }}>
+                        Cancel
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); processFile(); }} disabled={loading} className="duo-btn duo-btn-primary" style={{ padding: '8px 20px', display: 'flex', gap: '8px', opacity: loading ? 0.7 : 1 }}>
+                        <BrainCircuit size={18} /> {loading ? 'Scanning...' : 'Scan File'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+
 
             {loading && (
-              <div style={{ textAlign: 'center', margin: '2rem 0' }}>
-                <div className="spinner"></div>
-                <p style={{ fontWeight: '700', color: 'var(--text-muted)' }}>
-                  Analyzing study document... please wait.
+              <div style={{ textAlign: 'center', margin: '2rem 0', background: 'rgba(108,99,255,0.05)', padding: '2rem', borderRadius: '16px', border: '1px dashed rgba(108,99,255,0.2)' }}>
+                <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+                <h3 style={{ color: 'var(--text)', margin: '0 0 8px 0' }}>Analyzing study document...</h3>
+                <p style={{ fontWeight: '600', color: 'var(--playful-blue)', margin: 0 }}>
+                  This AI process can take 15 - 60 seconds. Please do not refresh the page.
                 </p>
               </div>
             )}

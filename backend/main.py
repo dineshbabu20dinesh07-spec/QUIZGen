@@ -304,6 +304,15 @@ async def health_check():
         "features": ["paging", "cookie-auth", "rbac", "multi-domain", "api-keys"],
     }
 
+@app.get("/ping")
+async def ping():
+    """
+    Lightweight wake-up endpoint. No DB calls, no auth.
+    Frontend calls this silently on load so Render server wakes up
+    before the user tries to upload a file.
+    """
+    return {"pong": True}
+
 # ─────────────────────────────────────────────
 # AUTH ROUTES (Cookie-based)
 # ─────────────────────────────────────────────
